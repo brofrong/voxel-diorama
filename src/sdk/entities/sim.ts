@@ -30,6 +30,9 @@ export function wander(options: WanderOptions): Behaviour {
 	const speed = options.speed ?? 0.8;
 	if (!(speed > 0)) throw new Error('wander: speed должен быть > 0');
 	const [pauseMin, pauseMax] = options.pause ?? [1, 3];
+	if (!(pauseMin >= 0 && pauseMax >= pauseMin)) {
+		throw new Error('wander: pause должен быть [min, max] с 0 ≤ min ≤ max');
+	}
 	return {
 		kind: 'wander',
 		positional: true,
@@ -206,6 +209,7 @@ class FlockSim {
 export function flock(options: FlockOptions): Behaviour {
 	if (!(options.radius > 0)) throw new Error('flock: radius должен быть > 0');
 	const speed = options.speed ?? 4;
+	if (!(speed > 0)) throw new Error('flock: speed должен быть > 0');
 	const sims = new Map<number, FlockSim>();
 	return {
 		kind: 'flock',

@@ -49,6 +49,14 @@ describe('wander', () => {
 	test('неверная зона — ошибка', () => {
 		expect(() => wander({ area: [5, 5, 5, 10] })).toThrow('area');
 	});
+
+	test('неверная пауза (отрицательная) — ошибка', () => {
+		expect(() => wander({ area: [0, 0, 10, 10], pause: [-5, -1] })).toThrow('pause');
+	});
+
+	test('неверная пауза (min > max) — ошибка', () => {
+		expect(() => wander({ area: [0, 0, 10, 10], pause: [3, 1] })).toThrow('pause');
+	});
 });
 
 describe('flock', () => {
@@ -92,5 +100,9 @@ describe('flock', () => {
 
 	test('radius ≤ 0 — ошибка', () => {
 		expect(() => flock({ center: [0, 0], radius: 0 })).toThrow('radius');
+	});
+
+	test('speed ≤ 0 — ошибка', () => {
+		expect(() => flock({ center: [0, 20, 0], radius: 5, speed: 0 })).toThrow('speed');
 	});
 });
