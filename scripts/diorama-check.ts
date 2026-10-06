@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { bakeToVxb, bakeWarnings, SIZE_LIMIT_BYTES, SLUG_RE } from '#sdk';
 import { listSlugs, loadDiorama, ROOT } from './lib/dioramas.ts';
 
@@ -49,6 +51,11 @@ for (const slug of targets) {
 			`  вокселей ${stats.voxels.toLocaleString('ru-RU')} · чанков ${stats.chunks} · материалов ${stats.materials} · ${formatBytes(stats.bytes)} · ${ms} мс`,
 		);
 		for (const warning of bakeWarnings(stats)) console.log(`  ⚠ ${warning}`);
+		if (!existsSync(join(ROOT, 'static/thumbs', `${slug}.webp`))) {
+			console.log(
+				`  ⚠ нет скриншота static/thumbs/${slug}.webp — сделай его (skill new-diorama, шаг 5)`,
+			);
+		}
 		console.log('  ✓ ok');
 	} catch (error) {
 		failed = true;
