@@ -229,6 +229,22 @@ describe('WorldBuilder: якоря', () => {
 		expect(() => w.place(marker, [20, 0, 20], { name: 'mill' })).toThrow('якорь "mill.a" уже есть');
 	});
 
+	test('коллизия имени якоря обнаруживается до записи вокселей (атомарность)', () => {
+		const a = model(
+			{ size: [2, 1, 1], palette: { wood: '#6b4a2b' }, anchors: { a: [0, 0, 0], b: [1, 0, 0] } },
+			(m) => m.set([0, 0, 0], 'wood'),
+		);
+		const b = model(
+			{ size: [2, 1, 1], palette: { wood: '#6b4a2b' }, anchors: { c: [0, 0, 0], a: [1, 0, 0] } },
+			(m) => m.set([1, 0, 0], 'wood'),
+		);
+		const w = new WorldBuilder([32, 16, 32], palette, 1);
+		w.place(a, [10, 0, 10], { name: 'mill' });
+		expect(() => w.place(b, [10, 0, 10], { name: 'mill' })).toThrow('якорь "mill.a" уже есть');
+		expect(w.anchors['mill.c']).toBeUndefined();
+		expect(w.get([10, 0, 10])).toBeNull();
+	});
+
 	test('place не принимает модели с scale ≠ 1', () => {
 		const small = model({ size: [1, 1, 1], palette: { wood: '#6b4a2b' }, scale: 0.25 }, (m) =>
 			m.set([0, 0, 0], 'wood'),

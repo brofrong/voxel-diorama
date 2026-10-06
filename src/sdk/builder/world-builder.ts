@@ -218,6 +218,12 @@ export class WorldBuilder extends VoxelCanvas {
 		if (options.name !== undefined && !ANCHOR_NAME_RE.test(options.name)) {
 			throw new Error(`имя "${options.name}": латиница с маленькой буквы, без точек`);
 		}
+		if (options.name !== undefined) {
+			for (const key of Object.keys(source.anchors)) {
+				const full = `${options.name}.${key}`;
+				if (this.anchorMap.has(full)) throw new Error(`якорь "${full}" уже есть`);
+			}
+		}
 		const [sx, sy, sz] = source.size;
 		const ids = source.materials.map(({ name, material }) =>
 			this.resolveModelMaterial(name, material),
