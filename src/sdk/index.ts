@@ -21,6 +21,7 @@ export {
 } from './builder/world-builder.ts';
 export type { MaterialInput } from './materials.ts';
 export type { Noise2D } from './noise.ts';
+export * as prefabs from './prefabs/index.ts';
 export type { Rng } from './rng.ts';
 export {
 	type Diorama,
