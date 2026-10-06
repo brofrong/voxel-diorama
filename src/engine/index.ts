@@ -53,7 +53,16 @@ export async function mountDiorama(
 	let userPaused = false;
 	let disposed = false;
 
-	const resize = (): void => stage.resize(canvas.clientWidth || 1, canvas.clientHeight || 1);
+	// Когда анимационный цикл не крутится (пауза/скрытая вкладка), setSize и
+	// изменение времени суток сами по себе не перерисовывают кадр — дорисовываем вручную.
+	const redrawIfIdle = (): void => {
+		if (!disposed && (userPaused || document.hidden)) stage.render();
+	};
+
+	const resize = (): void => {
+		stage.resize(canvas.clientWidth || 1, canvas.clientHeight || 1);
+		redrawIfIdle();
+	};
 	const observer = new ResizeObserver(resize);
 	observer.observe(canvas);
 	resize();
@@ -108,7 +117,10 @@ export async function mountDiorama(
 		get paused() {
 			return userPaused;
 		},
-		setTime: (time) => stage.setTime(time),
+		setTime: (time) => {
+			stage.setTime(time);
+			redrawIfIdle();
+		},
 		pause() {
 			userPaused = true;
 			syncLoop();
