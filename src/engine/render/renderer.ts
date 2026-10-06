@@ -1,4 +1,4 @@
-import { AgXToneMapping, PCFShadowMap, WebGPURenderer } from 'three/webgpu';
+import { ACESFilmicToneMapping, PCFShadowMap, WebGPURenderer } from 'three/webgpu';
 
 export class NoGraphicsError extends Error {
 	constructor(message: string) {
@@ -19,7 +19,7 @@ export async function createRenderer(canvas: HTMLCanvasElement): Promise<WebGPUR
 		throw new NoGraphicsError(`браузер не поддерживает ни WebGPU, ни WebGL2 (${reason})`);
 	}
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-	renderer.toneMapping = AgXToneMapping;
+	renderer.toneMapping = ACESFilmicToneMapping;
 	renderer.shadowMap.enabled = true;
 	renderer.shadowMap.type = PCFShadowMap;
 	return renderer;

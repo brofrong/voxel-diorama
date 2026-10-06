@@ -42,5 +42,5 @@ export default defineDiorama({
 		w.scatter(prefabs.pine, { count: 14, on: 'grass', minDistance: 7, area: [0, 0, 40, 95] });
 		w.scatter(prefabs.rock, { count: 10, on: ['grass', 'sand'], minDistance: 5 });
 	},
-	atmosphere: { time: { fixed: 'sunset' }, fog: 0.003 },
+	atmosphere: { time: { fixed: 'sunset' }, fog: 0 },
 });
