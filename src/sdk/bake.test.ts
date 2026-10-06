@@ -59,4 +59,16 @@ describe('bake', () => {
 		const { materials } = await decodeVxb(bytes);
 		expect(materials.map((m) => m.kind)).toEqual(['solid', 'solid', 'solid', 'water']);
 	});
+
+	test('якоря мира запекаются и считаются в статистике', async () => {
+		const { bytes, stats, result } = await bakeToVxb(
+			valley((w) => {
+				w.box([0, 0, 0], [1, 0, 0], 'grass');
+				w.anchor('well', [1, 2, 3]);
+			}),
+		);
+		expect(stats.anchors).toBe(1);
+		expect(result.anchors).toEqual({ well: [1, 2, 3] });
+		expect((await decodeVxb(bytes)).anchors).toEqual({ well: [1, 2, 3] });
+	});
 });

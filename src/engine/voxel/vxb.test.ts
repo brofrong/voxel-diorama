@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { Material } from '../types.ts';
+import type { Material, Vec3 } from '../types.ts';
 import { CHUNK, CHUNK_VOLUME } from './constants.ts';
 import { decodeVxb, encodeVxb, VXB_VERSION, VxbError } from './vxb.ts';
 import { VoxelWorld } from './world.ts';
@@ -79,5 +79,26 @@ describe('vxb', () => {
 		world.setChunk([5, 0, 0], new Uint8Array(CHUNK_VOLUME).fill(1));
 		const bytes = await encodeVxb({ world, materials });
 		await expect(decodeVxb(bytes)).rejects.toBeInstanceOf(VxbError);
+	});
+
+	test('якоря проходят туда-обратно', async () => {
+		const world = new VoxelWorld([16, 16, 16]);
+		world.set(1, 1, 1, 1);
+		const anchors = { 'mill.hub': [4.5, 12.5, -0.5] as Vec3, well: [1, 2, 3] as Vec3 };
+		const decoded = await decodeVxb(await encodeVxb({ world, materials, anchors }));
+		expect(decoded.anchors).toEqual(anchors);
+	});
+
+	test('без якорей — пустой словарь', async () => {
+		const decoded = await decodeVxb(
+			await encodeVxb({ world: new VoxelWorld([8, 8, 8]), materials }),
+		);
+		expect(decoded.anchors).toEqual({});
+	});
+
+	test('файл версии 1 → VxbError с советом перезапечь', async () => {
+		const bytes = await encodeVxb({ world: new VoxelWorld([8, 8, 8]), materials });
+		bytes[3] = 1;
+		await expect(decodeVxb(bytes)).rejects.toThrow('перезапеките');
 	});
 });

@@ -3,7 +3,7 @@ import { CHUNK, CHUNK_VOLUME, MAX_MATERIALS } from './constants.ts';
 import { hexToRgb8, KIND_CODE, KIND_NAME, rgb8ToHex } from './palette.ts';
 import { VoxelWorld } from './world.ts';
 
-export const VXB_VERSION = 1;
+export const VXB_VERSION = 2;
 const MAGIC = [0x56, 0x58, 0x42]; // "VXB"
 
 export class VxbError extends Error {
@@ -17,6 +17,8 @@ export interface VxbData {
 	world: VoxelWorld;
 	/** Материал `i` хранится в вокселях как индекс `i + 1`. */
 	materials: Material[];
+	/** Именованные точки мира (якоря). */
+	anchors?: Record<string, Vec3>;
 }
 
 class ByteWriter {
@@ -58,6 +60,12 @@ class ByteWriter {
 		this.length += 4;
 	}
 
+	raw(bytes: Uint8Array): void {
+		this.ensure(bytes.length);
+		this.buf.set(bytes, this.length);
+		this.length += bytes.length;
+	}
+
 	bytes(): Uint8Array {
 		return this.buf.slice(0, this.length);
 	}
@@ -93,6 +101,11 @@ class ByteReader {
 	f32(): number {
 		return this.view.getFloat32(this.take(4), true);
 	}
+
+	raw(n: number): Uint8Array {
+		const at = this.take(n);
+		return new Uint8Array(this.view.buffer, this.view.byteOffset + at, n).slice();
+	}
 }
 
 async function transform(
@@ -103,7 +116,7 @@ async function transform(
 	return new Uint8Array(await response.arrayBuffer());
 }
 
-export async function encodeVxb({ world, materials }: VxbData): Promise<Uint8Array> {
+export async function encodeVxb({ world, materials, anchors }: VxbData): Promise<Uint8Array> {
 	if (materials.length > MAX_MATERIALS) {
 		throw new VxbError(`слишком много материалов: ${materials.length} (максимум ${MAX_MATERIALS})`);
 	}
@@ -149,6 +162,22 @@ export async function encodeVxb({ world, materials }: VxbData): Promise<Uint8Arr
 		}
 	}
 
+	const anchorEntries = Object.entries(anchors ?? {}).sort(([a], [b]) =>
+		a < b ? -1 : a > b ? 1 : 0,
+	);
+	if (anchorEntries.length > 65535) throw new VxbError('слишком много якорей');
+	w.u16(anchorEntries.length);
+	const encoder = new TextEncoder();
+	for (const [name, p] of anchorEntries) {
+		const nameBytes = encoder.encode(name);
+		if (nameBytes.length > 255) throw new VxbError(`слишком длинное имя якоря "${name}"`);
+		w.u8(nameBytes.length);
+		w.raw(nameBytes);
+		w.f32(p[0]);
+		w.f32(p[1]);
+		w.f32(p[2]);
+	}
+
 	const payload = await transform(w.bytes(), new CompressionStream('deflate-raw'));
 	const out = new Uint8Array(4 + payload.length);
 	out.set(MAGIC);
@@ -157,7 +186,7 @@ export async function encodeVxb({ world, materials }: VxbData): Promise<Uint8Arr
 	return out;
 }
 
-export async function decodeVxb(input: ArrayBuffer | Uint8Array): Promise<VxbData> {
+export async function decodeVxb(input: ArrayBuffer | Uint8Array): Promise<Required<VxbData>> {
 	const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
 	if (bytes.length < 4 || bytes[0] !== MAGIC[0] || bytes[1] !== MAGIC[1] || bytes[2] !== MAGIC[2]) {
 		throw new VxbError('это не файл .vxb');
@@ -213,5 +242,12 @@ export async function decodeVxb(input: ArrayBuffer | Uint8Array): Promise<VxbDat
 		if (offset !== CHUNK_VOLUME) throw new VxbError('повреждённый чанк в .vxb');
 		world.setChunk(coord, data);
 	}
-	return { world, materials };
+	const anchors: Record<string, Vec3> = {};
+	const anchorCount = r.u16();
+	const decoder = new TextDecoder();
+	for (let i = 0; i < anchorCount; i++) {
+		const name = decoder.decode(r.raw(r.u8()));
+		anchors[name] = [r.f32(), r.f32(), r.f32()];
+	}
+	return { world, materials, anchors };
 }
