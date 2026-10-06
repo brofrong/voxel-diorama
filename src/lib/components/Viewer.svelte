@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { DioramaController, SceneConfig } from '#engine';
+	import type { DioramaController, EntityFactory, SceneConfig } from '#engine';
+	import { loadDioramaModule } from '#lib/client/diorama-loader.ts';
 	import type { CardData } from '#lib/types.ts';
+	import type { Diorama } from '#sdk';
 	import { dev } from '$app/env';
 	import { invalidateAll } from '$app/navigation';
 
@@ -29,6 +31,11 @@
 		controller?.setTime(scene.time);
 	});
 
+	async function entitiesFor(diorama: Diorama): Promise<EntityFactory> {
+		const { createEntityRuntime } = await import('#sdk');
+		return (ctx) => createEntityRuntime(diorama.entities, { seed: diorama.seed, ...ctx });
+	}
+
 	function exposeDevApi(ctl: DioramaController): void {
 		window.__diorama = {
 			slug: card.slug,
@@ -48,7 +55,8 @@
 	async function reload(): Promise<void> {
 		if (!controller) return;
 		try {
-			await controller.reloadWorld(worldUrl(true));
+			const diorama = await loadDioramaModule(card.slug, true);
+			await controller.reloadWorld(worldUrl(true), await entitiesFor(diorama));
 			await invalidateAll();
 			// Камера/туман/размер/подставка не применяются вживую — проще перезагрузить страницу.
 			if (mountedSceneFingerprint && sceneFingerprint(scene) !== mountedSceneFingerprint) {
@@ -71,12 +79,17 @@
 		(async () => {
 			if (!canvas) return;
 			try {
-				const engine = await import('#engine');
+				const [engine, diorama] = await Promise.all([
+					import('#engine'),
+					loadDioramaModule(card.slug, dev),
+				]);
 				const ctl = await engine.mountDiorama(canvas, config, {
 					url: worldUrl(dev),
 					onProgress: (p) => {
 						progress = p;
 					},
+					entities: await entitiesFor(diorama),
+					fixedTime: capture ? scene.captureTime : undefined,
 				});
 				if (disposed) {
 					ctl.dispose();
