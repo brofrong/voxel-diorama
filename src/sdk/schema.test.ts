@@ -57,6 +57,15 @@ describe('defineDiorama', () => {
 			DioramaValidationError,
 		);
 	});
+
+	test('нет входных данных — DioramaValidationError, а не TypeError', () => {
+		expect(() => defineDiorama(undefined as unknown as DioramaInput)).toThrow(
+			DioramaValidationError,
+		);
+		expect(() => defineDiorama(undefined as unknown as DioramaInput)).toThrow('?');
+		expect(() => defineDiorama(null as unknown as DioramaInput)).toThrow(DioramaValidationError);
+		expect(() => defineDiorama(null as unknown as DioramaInput)).toThrow('?');
+	});
 });
 
 describe('toSceneConfig', () => {

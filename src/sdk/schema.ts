@@ -105,7 +105,7 @@ export class DioramaValidationError extends Error {
 export function defineDiorama(input: DioramaInput): Diorama {
 	const result = dioramaSchema.safeParse(input);
 	if (!result.success) {
-		const title = (input as { meta?: { title?: unknown } }).meta?.title;
+		const title = (input as { meta?: { title?: unknown } } | null | undefined)?.meta?.title;
 		const name = typeof title === 'string' ? title : '?';
 		throw new DioramaValidationError(
 			`Диорама «${name}» невалидна:\n${z.prettifyError(result.error)}`,
