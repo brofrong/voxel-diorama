@@ -24,13 +24,14 @@ bun run diorama:new <slug> "Название"
 - `w.set / box / sphere / cylinder / line / clear` — примитивы; материал `'air'` вырезает.
 - `w.terrain({ noise: 'flat' | 'hills' | 'mountains', base, amp, scale, top, fill })`, `w.water({ level })`.
 - `w.place(model, [x, y, z], { rotate })` — `[x, y, z]` это **нижний центр** модели.
-- `w.scatter(prefabs.tree, { count, on: 'grass', minDistance, area })` — ставит на поверхность; всегда указывай `on`.
+- `w.scatter(prefabs.tree, { count, on: 'grass', minDistance, area })` — ставит на поверхность; всегда указывай `on`. `scatter` проверяет только материал приземления, поэтому у домов/дорог сузь `area`, чтобы туда не попало.
 - `w.heightAt(x, z)` — верхний твёрдый воксель колонки; `w.get(p)` — имя материала.
 - `w.rng` (`int`, `float`, `pick`, `chance`, `fork`), `w.noise` (`value`, `fbm`). **Никакого `Math.random`.**
 - `prefabs.tree | pine | house | rock` (опции цвета/размера, `rng`).
 - Своя модель: `model({ size: [x, y, z], palette: { … } }, (m) => { … })` — тот же набор примитивов. Если модель универсальна (пригодится в других диорамах) — вынеси её в `src/sdk/prefabs/` с тестом в `prefabs.test.ts`.
 - Материалы: `'#rrggbb'` или `{ color, emissive, kind: 'solid' | 'water' | 'glass' }`. Светящееся (окна, фонари, лава) — `emissive` 0.5–2.
-- Корневые поля: `meta`, `seed`, `size`, `palette`, `build`, `atmosphere: { time: { fixed }, fog }` (туман 0–0.004, fog washes out colors quickly — usually 0), `camera`, `base: 'none' | 'wood' | 'stone'`.
+- Ключ палитры с именем, совпадающим с материалом префаба (`leaves`, `trunk`, `needles`, `wall`, `roof`, `door`, `window`, `chimney`, `stone`, `stone-dark`), перекрашивает этот префаб везде в диораме — используй осознанно.
+- Корневые поля: `meta`, `seed`, `size`, `palette`, `build`, `atmosphere: { time: { fixed }, fog }` (туман 0–0.004 — он быстро «выбеливает» цвета, обычно 0), `camera`, `base: 'none' | 'wood' | 'stone'`.
 
 ## 3. Проверка
 
@@ -51,7 +52,7 @@ bun run diorama:check <slug>
    - нет висящих в воздухе вокселей и деревьев в воде/на крышах;
    - масштаб объектов согласован (дом выше человека, деревья не гигантские);
    - в консоли нет ошибок (смотри diagnostics в snapshot).
-5. Правь код — вьюер обновится сам (HMR). 3–5 итераций максимум; если не выходит — покажи пользователю текущее состояние и спроси.
+5. Правь код — вьюер обновится сам (HMR). Изменения воксельного содержимого применяются на лету; изменения `camera`/`fog`/`size`/`base` перезагружают страницу автоматически. 3–5 итераций максимум; если не выходит — покажи пользователю текущее состояние и спроси.
 
 ## 5. Скриншот для карточки
 

@@ -15,9 +15,14 @@
 	let errorMessage = $state('');
 	let paused = $state(false);
 	let capture = $state(false);
+	let canFullscreen = $state(false);
 	let controller = $state.raw<DioramaController | null>(null);
+	let mountedSceneFingerprint = '';
 
 	const worldUrl = (bust: boolean) => `/baked/${card.slug}.vxb${bust ? `?t=${Date.now()}` : ''}`;
+
+	// Время суток — единственное, что применяется без перезагрузки страницы (см. reload()).
+	const sceneFingerprint = (s: SceneConfig): string => JSON.stringify({ ...s, time: undefined });
 
 	// После HMR-обновления данных подхватываем новое время суток.
 	$effect(() => {
@@ -33,7 +38,7 @@
 				const response = await fetch(`/__dev/thumb/${card.slug}`, {
 					method: 'POST',
 					body: blob,
-					headers: { 'Content-Type': 'image/webp' },
+					headers: { 'Content-Type': 'image/webp', 'X-Diorama-Thumb': '1' },
 				});
 				return await response.json();
 			},
@@ -45,6 +50,10 @@
 		try {
 			await controller.reloadWorld(worldUrl(true));
 			await invalidateAll();
+			// Камера/туман/размер/подставка не применяются вживую — проще перезагрузить страницу.
+			if (mountedSceneFingerprint && sceneFingerprint(scene) !== mountedSceneFingerprint) {
+				location.reload();
+			}
 		} catch (error) {
 			console.error('[diorama] не удалось перезагрузить мир', error);
 		}
@@ -53,9 +62,11 @@
 	onMount(() => {
 		let disposed = false;
 		capture = new URLSearchParams(location.search).has('capture');
+		canFullscreen = document.fullscreenEnabled === true;
 		const config: SceneConfig = capture
 			? { ...scene, camera: { ...scene.camera, autoRotate: false } }
 			: scene;
+		mountedSceneFingerprint = sceneFingerprint(scene);
 
 		(async () => {
 			if (!canvas) return;
@@ -104,8 +115,8 @@
 	}
 
 	function toggleFullscreen(): void {
-		if (document.fullscreenElement) void document.exitFullscreen();
-		else void document.documentElement.requestFullscreen();
+		if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+		else void document.documentElement.requestFullscreen().catch(() => {});
 	}
 </script>
 
@@ -147,7 +158,9 @@
 				<button type="button" onclick={togglePause} aria-label={paused ? 'Продолжить' : 'Пауза'}>
 					{paused ? '▶' : '❚❚'}
 				</button>
-				<button type="button" onclick={toggleFullscreen} aria-label="Во весь экран">⛶</button>
+				{#if canFullscreen}
+					<button type="button" onclick={toggleFullscreen} aria-label="Во весь экран">⛶</button>
+				{/if}
 			</div>
 		{/if}
 	{/if}
