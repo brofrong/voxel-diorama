@@ -12,7 +12,7 @@
 	<meta name="description" content={data.card.description || data.card.title} />
 	<meta property="og:type" content="website" />
 	<meta property="og:title" content={data.card.title} />
-	<meta property="og:description" content={data.card.description} />
+	<meta property="og:description" content={data.card.description || data.card.title} />
 	<meta property="og:url" content={page.url.href} />
 	{#if ogImage}
 		<meta property="og:image" content={ogImage} />
