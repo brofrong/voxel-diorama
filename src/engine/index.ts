@@ -1,9 +1,11 @@
 import { Group } from 'three/webgpu';
+import { EntityLayer } from './entities/layer.ts';
 import { fetchBytes } from './load.ts';
 import { createWorldMaterials } from './render/materials.ts';
 import { backendName, createRenderer } from './render/renderer.ts';
 import { Stage } from './render/stage.ts';
-import type { SceneConfig, TimeOfDay } from './types.ts';
+import type { EntityFactory, SceneConfig, TimeOfDay, WorldContext } from './types.ts';
+import { buildHeightmap } from './voxel/heightmap.ts';
 import { MesherPool } from './voxel/mesher-pool.ts';
 import { buildPaletteLUT } from './voxel/palette.ts';
 import { decodeVxb } from './voxel/vxb.ts';
@@ -11,7 +13,16 @@ import { meshWorld } from './world-mesh.ts';
 
 export { LoadError } from './load.ts';
 export { NoGraphicsError } from './render/renderer.ts';
-export type { BaseStyle, CameraConfig, SceneConfig, TimeOfDay, Vec3 } from './types.ts';
+export type {
+	BaseStyle,
+	CameraConfig,
+	EntityFactory,
+	EntityInstance,
+	SceneConfig,
+	TimeOfDay,
+	Vec3,
+	WorldContext,
+} from './types.ts';
 export { VxbError } from './voxel/vxb.ts';
 
 export interface MountOptions {
@@ -19,6 +30,10 @@ export interface MountOptions {
 	url: string;
 	/** 0..1: скачивание — первая половина, мешинг — вторая. */
 	onProgress?: (progress: number) => void;
+	/** Фабрика сущностей; вызывается после загрузки мира (якоря и земля известны). */
+	entities?: EntityFactory;
+	/** Зафиксировать время анимации (режим скриншота). */
+	fixedTime?: number;
 }
 
 export interface CaptureOptions {
@@ -33,8 +48,10 @@ export interface DioramaController {
 	setTime(time: TimeOfDay): void;
 	pause(): void;
 	resume(): void;
-	/** Перезагрузить мир без перезагрузки страницы (камера сохраняется). */
-	reloadWorld(url: string): Promise<void>;
+	/** Перезагрузить мир (и сущности) без перезагрузки страницы; камера сохраняется. */
+	reloadWorld(url: string, entities?: EntityFactory): Promise<void>;
+	/** Пересоздать сущности на текущем мире. */
+	setEntities(factory: EntityFactory | undefined): void;
 	/** Кадр в заданном разрешении, webp. */
 	captureThumbnail(options?: CaptureOptions): Promise<Blob>;
 	dispose(): void;
@@ -53,10 +70,21 @@ export async function mountDiorama(
 	let userPaused = false;
 	let disposed = false;
 
+	let entityFactory = options.entities;
+	let worldContext: WorldContext | null = null;
+	let layer: EntityLayer | null = null;
+	let animTime = options.fixedTime ?? 0;
+	let lastFrame = performance.now();
+
+	const frame = (): void => {
+		layer?.update(animTime);
+		stage.render();
+	};
+
 	// Когда анимационный цикл не крутится (пауза/скрытая вкладка), setSize и
 	// изменение времени суток сами по себе не перерисовывают кадр — дорисовываем вручную.
 	const redrawIfIdle = (): void => {
-		if (!disposed && (userPaused || document.hidden)) stage.render();
+		if (!disposed && (userPaused || document.hidden)) frame();
 	};
 
 	const resize = (): void => {
@@ -67,18 +95,42 @@ export async function mountDiorama(
 	observer.observe(canvas);
 	resize();
 
-	const loop = (): void => stage.render();
+	const loop = (): void => {
+		const now = performance.now();
+		if (options.fixedTime === undefined) {
+			animTime += Math.min(0.1, Math.max(0, (now - lastFrame) / 1000));
+		}
+		lastFrame = now;
+		frame();
+	};
 	const syncLoop = (): void => {
 		const running = !userPaused && !document.hidden && !disposed;
+		if (running) lastFrame = performance.now();
 		void renderer.setAnimationLoop(running ? loop : null);
 	};
 	document.addEventListener('visibilitychange', syncLoop);
 	syncLoop();
 
+	const rebuildEntities = (): void => {
+		layer?.dispose();
+		layer = null;
+		if (entityFactory && worldContext) {
+			try {
+				layer = new EntityLayer(entityFactory(worldContext), materials);
+				stage.scene.add(layer.group);
+				layer.update(animTime);
+			} catch (error) {
+				console.error('[diorama] не удалось создать сущности:', error);
+			}
+		}
+		redrawIfIdle();
+	};
+
 	const loadWorld = async (url: string, progressive: boolean): Promise<void> => {
 		const report = options.onProgress;
 		const bytes = await fetchBytes(url, (p) => report?.(p * 0.5));
-		const { world, materials: palette } = await decodeVxb(bytes);
+		const { world, materials: palette, anchors } = await decodeVxb(bytes);
+		const context: WorldContext = { anchors, groundAt: buildHeightmap(world, palette).groundAt };
 		pool?.dispose();
 		const meshPool = new MesherPool(buildPaletteLUT(palette));
 		pool = meshPool;
@@ -91,6 +143,8 @@ export async function mountDiorama(
 			if (pool === meshPool) pool = null;
 		}
 		if (!progressive) stage.replaceWorld(target);
+		worldContext = context;
+		rebuildEntities();
 	};
 
 	const dispose = (): void => {
@@ -100,6 +154,8 @@ export async function mountDiorama(
 		observer.disconnect();
 		document.removeEventListener('visibilitychange', syncLoop);
 		pool?.dispose();
+		layer?.dispose();
+		layer = null;
 		stage.dispose();
 		for (const material of Object.values(materials)) material.dispose();
 		renderer.dispose();
@@ -129,7 +185,14 @@ export async function mountDiorama(
 			userPaused = false;
 			syncLoop();
 		},
-		reloadWorld: (url) => loadWorld(url, false),
+		reloadWorld: (url, entities) => {
+			if (entities !== undefined) entityFactory = entities;
+			return loadWorld(url, false);
+		},
+		setEntities(factory) {
+			entityFactory = factory;
+			rebuildEntities();
+		},
 		async captureThumbnail({ width = 1200, height = 800, quality = 0.9 } = {}) {
 			const previousRatio = renderer.getPixelRatio();
 			renderer.setPixelRatio(1);
@@ -137,7 +200,7 @@ export async function mountDiorama(
 			try {
 				// render и toBlob в одной задаче — буфер кадра ещё не сброшен.
 				return await new Promise<Blob>((resolve, reject) => {
-					stage.render();
+					frame();
 					canvas.toBlob(
 						(blob) => (blob ? resolve(blob) : reject(new Error('canvas.toBlob вернул null'))),
 						'image/webp',
