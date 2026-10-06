@@ -36,4 +36,23 @@ describe('MesherPool', () => {
 		await expect(pending).rejects.toThrow('уничтожен');
 		await expect(pool.mesh(singleVoxel(), [0, 0, 0])).rejects.toThrow('уничтожен');
 	});
+
+	test('заменяет упавший воркер', async () => {
+		let callCount = 0;
+		const { createMeshWorker } = await import('./mesher-pool.ts');
+		const factory = () => {
+			callCount++;
+			if (callCount === 1) {
+				return new Worker(new URL('./crash.worker.fixture.ts', import.meta.url), {
+					type: 'module',
+				});
+			}
+			return createMeshWorker();
+		};
+		pool = new MesherPool(lut, 1, factory);
+		const firstMesh = pool.mesh(singleVoxel(), [0, 0, 0]);
+		await expect(firstMesh).rejects.toThrow('упал');
+		const secondMesh = await pool.mesh(singleVoxel(), [0, 0, 0]);
+		expect(secondMesh.opaque?.indices.length).toBe(36);
+	});
 });

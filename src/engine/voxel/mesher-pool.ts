@@ -28,16 +28,14 @@ export class MesherPool {
 	private readonly active = new Map<number, { job: Job; worker: Worker }>();
 	private nextId = 1;
 	private disposed = false;
+	private readonly lut: PaletteLUT;
+	private readonly createWorker: () => Worker;
 
 	constructor(lut: PaletteLUT, size = defaultPoolSize(), createWorker = createMeshWorker) {
+		this.lut = lut;
+		this.createWorker = createWorker;
 		for (let i = 0; i < size; i++) {
-			const worker = createWorker();
-			worker.onmessage = (event: MessageEvent<WorkerResponse>) => this.onResult(worker, event.data);
-			worker.onerror = (event: ErrorEvent) => this.onCrash(worker, event);
-			const init: WorkerRequest = { type: 'init', lut };
-			worker.postMessage(init);
-			this.workers.push(worker);
-			this.idle.push(worker);
+			this.spawnWorker();
 		}
 	}
 
@@ -58,6 +56,16 @@ export class MesherPool {
 		for (const { job } of this.active.values()) job.reject(error);
 		this.queue.length = 0;
 		this.active.clear();
+	}
+
+	private spawnWorker(): void {
+		const worker = this.createWorker();
+		worker.onmessage = (event: MessageEvent<WorkerResponse>) => this.onResult(worker, event.data);
+		worker.onerror = (event: ErrorEvent) => this.onCrash(worker, event);
+		const init: WorkerRequest = { type: 'init', lut: this.lut };
+		worker.postMessage(init);
+		this.workers.push(worker);
+		this.idle.push(worker);
 	}
 
 	private pump(): void {
@@ -91,7 +99,14 @@ export class MesherPool {
 			this.active.delete(id);
 			entry.job.reject(new Error(`mesh worker упал: ${event.message}`));
 		}
-		this.idle.push(worker);
+		worker.terminate();
+		const workerIdx = this.workers.indexOf(worker);
+		if (workerIdx !== -1) this.workers.splice(workerIdx, 1);
+		const idleIdx = this.idle.indexOf(worker);
+		if (idleIdx !== -1) this.idle.splice(idleIdx, 1);
+		if (!this.disposed) {
+			this.spawnWorker();
+		}
 		this.pump();
 	}
 }
