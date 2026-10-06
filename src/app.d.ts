@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 // See https://svelte.dev/docs/kit/types#app.d.ts
-// for information about these interfaces
+import type { TimeOfDay } from '#engine';
+
 declare global {
 	namespace App {
 		// interface Error {}
@@ -9,6 +10,13 @@ declare global {
 		// interface PageState {}
 		// interface Platform {}
 	}
-}
 
-export {};
+	interface Window {
+		/** Только в dev: хуки агента для скриншотов и проверки сцены. */
+		__diorama?: {
+			slug: string;
+			setTime(time: TimeOfDay): void;
+			saveThumbnail(): Promise<{ ok: boolean; path?: string; bytes?: number; error?: string }>;
+		};
+	}
+}
