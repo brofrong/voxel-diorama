@@ -1,0 +1,41 @@
+{
+	"name": "voxel-diorama",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "bun run scripts/bake-all.ts && vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check:types": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
+		"lint": "biome check .",
+		"format": "biome check --write .",
+		"test": "bun test",
+		"check": "bun run lint && bun run check:types && bun test",
+		"diorama:new": "bun run scripts/diorama-new.ts",
+		"diorama:check": "bun run scripts/diorama-check.ts"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.15",
+		"@sveltejs/adapter-static": "^4.0.0",
+		"@sveltejs/kit": "^3.0.0",
+		"@sveltejs/vite-plugin-svelte": "^7.2.0",
+		"@types/bun": "^1.4.2",
+		"@types/three": "^0.186.0",
+		"svelte": "^5.57.1",
+		"svelte-check": "^4.6.0",
+		"typescript": "^6.0.3",
+		"vite": "^8.3.0"
+	},
+	"imports": {
+		"#lib": "./src/lib/index.js",
+		"#lib/*": "./src/lib/*",
+		"#sdk": "./src/sdk/index.ts",
+		"#engine": "./src/engine/index.ts"
+	},
+	"dependencies": {
+		"three": "^0.186.1",
+		"zod": "^4.6.5"
+	}
+}
