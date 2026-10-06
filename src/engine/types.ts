@@ -26,6 +26,8 @@ export interface SceneConfig {
 	fog: number;
 	camera: CameraConfig;
 	base: BaseStyle;
+	/** Время анимации (с), на котором замирает режим скриншота `?capture`. */
+	captureTime: number;
 }
 
 /** Воксели модели сущности (материал i — индекс i + 1). Координаты в вокселях модели. */

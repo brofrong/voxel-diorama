@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { model } from './builder/model.ts';
+import { spin, walkPath } from './entities/index.ts';
 import {
 	type DioramaInput,
 	DioramaValidationError,
@@ -39,8 +41,8 @@ describe('defineDiorama', () => {
 	});
 
 	test('поля будущих этапов отвергаются (strict)', () => {
-		const input = { ...minimal(), entities: [] } as unknown as DioramaInput;
-		expect(() => defineDiorama(input)).toThrow('entities');
+		const input = { ...minimal(), particles: [] } as unknown as DioramaInput;
+		expect(() => defineDiorama(input)).toThrow('particles');
 	});
 
 	test('несуществующая дата отвергается', () => {
@@ -88,5 +90,65 @@ describe('toSceneConfig', () => {
 		expect(scene.camera.position).toEqual([1, 2, 3]);
 		expect(scene.camera.target).toEqual([4, 5, 6]);
 		expect(scene.camera.autoRotate).toBe(false);
+	});
+});
+
+describe('entities в схеме', () => {
+	const box = model({ size: [1, 1, 1], palette: { c: '#ffffff' } }, (m) => m.set([0, 0, 0], 'c'));
+
+	test('по умолчанию entities пустой, captureTime 2', () => {
+		const d = defineDiorama(minimal());
+		expect(d.entities).toEqual([]);
+		expect(toSceneConfig(d).captureTime).toBe(2);
+	});
+
+	test('нормализует animate в массив и заполняет значения по умолчанию', () => {
+		const d = defineDiorama({
+			...minimal(),
+			entities: [{ model: box, at: [1, 1], animate: spin() }],
+		});
+		expect(d.entities[0].animate).toHaveLength(1);
+		expect(d.entities[0].count).toBe(1);
+		expect(d.entities[0].rotate).toBe(0);
+	});
+
+	test('позицию может задать поведение вместо at', () => {
+		expect(() =>
+			defineDiorama({
+				...minimal(),
+				entities: [
+					{
+						model: box,
+						animate: walkPath([
+							[0, 0],
+							[5, 5],
+						]),
+					},
+				],
+			}),
+		).not.toThrow();
+	});
+
+	test('понятные ошибки сущностей', () => {
+		const bad = (entities: unknown) =>
+			defineDiorama({ ...minimal(), entities } as unknown as DioramaInput);
+		expect(() => bad([{ at: [1, 1] }])).toThrow('ровно одно из model или rig');
+		expect(() => bad([{ model: box }])).toThrow('нет позиции');
+		expect(() => bad([{ model: box, at: [1, 1], count: 65 }])).toThrow(DioramaValidationError);
+		expect(() => bad([{ model: box, at: [1, 1], animate: { spin: 1 } }])).toThrow(
+			'ожидается поведение',
+		);
+		expect(() =>
+			bad([
+				{ id: 'a', model: box, at: [1, 1] },
+				{ id: 'a', model: box, at: [2, 2] },
+			]),
+		).toThrow('повторяется id "a"');
+		expect(() => bad([{ model: box, at: 'Bad name' }])).toThrow(DioramaValidationError);
+	});
+
+	test('поля этапа 3 по-прежнему отвергаются', () => {
+		const input = { ...minimal(), particles: [] } as unknown as DioramaInput;
+		expect(() => defineDiorama(input)).toThrow('particles');
 	});
 });

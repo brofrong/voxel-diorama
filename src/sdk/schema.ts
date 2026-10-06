@@ -1,7 +1,11 @@
 import { z } from 'zod';
 import type { SceneConfig, Vec3 } from '../engine/types.ts';
 import { MAX_MATERIALS } from '../engine/voxel/constants.ts';
+import { ANCHOR_REF_RE } from './anchors.ts';
+import { isModel, type Model } from './builder/model.ts';
 import type { WorldBuilder } from './builder/world-builder.ts';
+import { isRig, type Rig } from './entities/rig.ts';
+import { type Behaviour, isBehaviour } from './entities/types.ts';
 import { AIR, HEX_COLOR, normalizeMaterial } from './materials.ts';
 
 const hexColor = z.string().regex(HEX_COLOR, 'ожидается цвет в формате #rrggbb');
@@ -19,6 +23,48 @@ const materialInput = z.union([
 
 /** Имя материала: латиница, с маленькой буквы. */
 const MATERIAL_NAME_RE = /^[a-z][a-zA-Z0-9_-]*$/;
+
+const point = z.union([
+	z.tuple([z.number(), z.number()]),
+	z.tuple([z.number(), z.number(), z.number()]),
+	z.string().regex(ANCHOR_REF_RE, 'якорь: `name` или `name.anchor` латиницей с маленькой буквы'),
+]);
+
+// R1: zod 4 сообщает об ошибке непройденного члена z.union как общее "Invalid input" и теряет
+// сообщение refine, поэтому `animate` — не union([behaviour, array(behaviour)]), а один
+// z.custom с трансформацией в массив.
+const entity = z
+	.strictObject({
+		id: z
+			.string()
+			.regex(/^[a-z][a-zA-Z0-9_-]*$/, 'id: латиница с маленькой буквы')
+			.optional(),
+		model: z.custom<Model>(isModel, 'model: ожидается model({...}) или префаб-модель').optional(),
+		rig: z.custom<Rig>(isRig, 'rig: ожидается rig({...}) или префаб-персонаж').optional(),
+		at: point.optional(),
+		rotate: z.number().default(0),
+		count: z.number().int().min(1).max(64).default(1),
+		animate: z
+			.custom<Behaviour | Behaviour[]>(
+				(v) => v === undefined || isBehaviour(v) || (Array.isArray(v) && v.every(isBehaviour)),
+				'animate: ожидается поведение (spin(), walkPath(), …) или их массив',
+			)
+			.optional()
+			.transform((v) => (v === undefined ? [] : Array.isArray(v) ? v : [v])),
+	})
+	.superRefine((e, ctx) => {
+		if ((e.model ? 1 : 0) + (e.rig ? 1 : 0) !== 1) {
+			ctx.addIssue({ code: 'custom', message: 'нужно ровно одно из model или rig' });
+		}
+		if (e.at === undefined && !e.animate.some((b) => b.positional)) {
+			ctx.addIssue({
+				code: 'custom',
+				path: ['at'],
+				message:
+					'нет позиции: задай at или поведение, двигающее сущность (walkPath, wander, orbit, flock, keyframes)',
+			});
+		}
+	});
 
 export const dioramaSchema = z.strictObject({
 	meta: z.strictObject({
@@ -71,6 +117,20 @@ export const dioramaSchema = z.strictObject({
 		(v) => typeof v === 'function',
 		'build должен быть функцией (w) => { … }',
 	),
+	entities: z
+		.array(entity)
+		.max(256)
+		.default([])
+		.superRefine((list, ctx) => {
+			const seen = new Set<string>();
+			list.forEach((e, i) => {
+				if (e.id === undefined) return;
+				if (seen.has(e.id)) {
+					ctx.addIssue({ code: 'custom', path: [i, 'id'], message: `повторяется id "${e.id}"` });
+				}
+				seen.add(e.id);
+			});
+		}),
 	atmosphere: z
 		.strictObject({
 			time: z
@@ -86,6 +146,7 @@ export const dioramaSchema = z.strictObject({
 			autoRotate: z.boolean().default(true),
 			minDistance: z.number().positive().optional(),
 			maxDistance: z.number().positive().optional(),
+			captureTime: z.number().min(0).max(60).default(2),
 		})
 		.prefault({}),
 	base: z.enum(['none', 'wood', 'stone']).default('none'),
@@ -137,5 +198,6 @@ export function toSceneConfig(d: Diorama): SceneConfig {
 			minDistance: d.camera.minDistance ?? span * 0.3,
 			maxDistance: d.camera.maxDistance ?? span * 3,
 		},
+		captureTime: d.camera.captureTime,
 	};
 }

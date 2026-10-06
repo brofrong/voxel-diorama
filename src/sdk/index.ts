@@ -1,4 +1,5 @@
 export type { Material, MaterialKind, SceneConfig, TimeOfDay, Vec3 } from '../engine/types.ts';
+export { buildHeightmap } from '../engine/voxel/heightmap.ts';
 export {
 	type BakeResult,
 	type BakeStats,
@@ -8,9 +9,10 @@ export {
 	SIZE_LIMIT_BYTES,
 	SIZE_WARN_BYTES,
 } from './bake.ts';
-export { type Model, ModelBuilder, type ModelOptions, model } from './builder/model.ts';
+export { isModel, type Model, ModelBuilder, type ModelOptions, model } from './builder/model.ts';
 export {
 	type ModelSource,
+	type Placed,
 	type PlaceOptions,
 	type Rotation,
 	type ScatterOptions,
@@ -19,6 +21,7 @@ export {
 	type WaterOptions,
 	WorldBuilder,
 } from './builder/world-builder.ts';
+export * from './entities/index.ts';
 export type { MaterialInput } from './materials.ts';
 export type { Noise2D } from './noise.ts';
 export * as prefabs from './prefabs/index.ts';
