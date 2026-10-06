@@ -32,7 +32,7 @@ Bun · SvelteKit 3 + Svelte 5 (runes) · Vite 8 · Three.js (`WebGPURenderer` + 
 
 - Y вверх, целые координаты, 1 воксель = 1 единица. Чанк 32³, ≤ 255 материалов на диораму.
 - В `src/sdk` и `src/dioramas` **нельзя `Math.random`** — только `w.rng` (детерминизм запекания).
-- Диорамы импортируют только `#sdk`. Поля `entities` / `particles` / `lights` появятся на этапах 2–3; сейчас схема их отвергает.
+- Диорамы импортируют только `#sdk`. Поля `particles` / `lights` появятся на этапе 3; сейчас схема их отвергает.
 - Импорты: внутри `src/engine`, `src/sdk`, `scripts`, `vite` — относительные с `.ts`; в `src/lib`/`src/routes` — `#lib/...ts`, `#sdk`, `#engine`.
 - Three.js — только из `three/webgpu`, `three/tsl`, `three/addons/...`.
 - SvelteKit 3: конфиг кита в `vite.config.ts`, окружение — `$app/env`.
