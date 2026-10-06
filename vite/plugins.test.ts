@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { parseBakedPath, slugFromChangedFile } from './diorama-dev.ts';
-import { isWebp, parseThumbPath } from './thumbnail.ts';
+import { hasThumbHeader, isWebp, parseThumbPath } from './thumbnail.ts';
 
 test('parseBakedPath', () => {
 	expect(parseBakedPath('/quiet-valley.vxb')).toBe('quiet-valley');
@@ -28,4 +28,11 @@ test('isWebp', () => {
 	const webp = new Uint8Array([82, 73, 70, 70, 0, 0, 0, 0, 87, 69, 66, 80, 86, 80, 56]);
 	expect(isWebp(webp)).toBe(true);
 	expect(isWebp(new TextEncoder().encode('<html>not an image</html>'))).toBe(false);
+});
+
+test('hasThumbHeader', () => {
+	expect(hasThumbHeader('1')).toBe(true);
+	expect(hasThumbHeader(['1'])).toBe(true);
+	expect(hasThumbHeader('0')).toBe(false);
+	expect(hasThumbHeader(undefined)).toBe(false);
 });

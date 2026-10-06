@@ -18,6 +18,11 @@ export function isWebp(bytes: Uint8Array): boolean {
 	return bytes.length > 12 && ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP';
 }
 
+/** Требуем кастомный заголовок, чтобы cross-site simple POST (без preflight) не прошёл. */
+export function hasThumbHeader(value: string | string[] | undefined): boolean {
+	return value === '1' || (Array.isArray(value) && value.includes('1'));
+}
+
 /** Dev: принимает скриншот диорамы и кладёт его в static/thumbs/<slug>.webp. */
 export function thumbnailDev(): Plugin {
 	return {
@@ -31,6 +36,9 @@ export function thumbnailDev(): Plugin {
 					res.setHeader('Content-Type', 'application/json; charset=utf-8');
 					res.end(JSON.stringify(body));
 				};
+				if (!hasThumbHeader(req.headers['x-diorama-thumb'])) {
+					return reply(403, { ok: false, error: 'нужен заголовок X-Diorama-Thumb' });
+				}
 				const slug = parseThumbPath(req.url ?? '');
 				if (!slug) return reply(400, { ok: false, error: 'некорректный slug' });
 				const root = server.config.root;
