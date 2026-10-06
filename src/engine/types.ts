@@ -27,3 +27,48 @@ export interface SceneConfig {
 	camera: CameraConfig;
 	base: BaseStyle;
 }
+
+/** Воксели модели сущности (материал i — индекс i + 1). Координаты в вокселях модели. */
+export interface VoxelModelData {
+	size: Vec3;
+	data: Uint8Array;
+	materials: readonly Material[];
+	/** Размер вокселя модели в единицах мира. */
+	scale: number;
+	/** Сустав/точка привязки в вокселях модели. */
+	pivot: Vec3;
+}
+
+export interface EntityPartSpec {
+	name: string;
+	model: VoxelModelData;
+	/** Индекс родителя (−1 — корень); родитель всегда раньше ребёнка. */
+	parent: number;
+	/** Смещение pivot части от pivot родителя, единицы мира. */
+	attach: Vec3;
+}
+
+export interface EntityPose {
+	/** Мировая точка привязки сущности. */
+	position: Vec3;
+	/** Радианы, Euler YXZ. */
+	rotation: Vec3;
+	/** Подъём корня над `position`, единицы мира. */
+	lift: number;
+	/** Повороты частей (радианы, Euler XYZ), индексы как в `parts`. */
+	parts: Vec3[];
+}
+
+export interface EntityInstance {
+	id: string;
+	parts: EntityPartSpec[];
+	pose(t: number): EntityPose;
+}
+
+/** Что известно о мире после декодирования `.vxb`. */
+export interface WorldContext {
+	anchors: Readonly<Record<string, Vec3>>;
+	groundAt(x: number, z: number): number;
+}
+
+export type EntityFactory = (ctx: WorldContext) => EntityInstance[];
