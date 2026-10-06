@@ -190,3 +190,50 @@ describe('WorldBuilder: scatter', () => {
 		expect(calls).toBe(3);
 	});
 });
+
+describe('WorldBuilder: якоря', () => {
+	const marker = model(
+		{ size: [3, 1, 2], palette: { wood: '#6b4a2b' }, anchors: { a: [0.5, 0, 0.5] } },
+		(m) => m.set([0, 0, 0], 'wood'),
+	);
+
+	test.each([
+		[0, [9.5, 0, 9.5]],
+		[90, [10.5, 0, 9.5]],
+		[180, [11.5, 0, 10.5]],
+		[270, [9.5, 0, 11.5]],
+	] as const)('rotate %i переводит якорь в мир', (rotate, expected) => {
+		const w = new WorldBuilder([32, 16, 32], palette, 1);
+		expect(w.place(marker, [10, 0, 10], { rotate }).anchors.a).toEqual([...expected]);
+	});
+
+	test('якорь в центре вокселя остаётся в этом вокселе после поворота', () => {
+		const w = new WorldBuilder([32, 16, 32], palette, 1);
+		const [x, y, z] = w.place(marker, [10, 0, 10], { rotate: 90 }).anchors.a;
+		expect(w.get([x, y, z])).toBe('wood');
+	});
+
+	test('name регистрирует якоря как <name>.<якорь>', () => {
+		const w = new WorldBuilder([32, 16, 32], palette, 1);
+		w.place(marker, [10, 0, 10], { name: 'mill' });
+		expect(w.anchors['mill.a']).toEqual([9.5, 0, 9.5]);
+	});
+
+	test('w.anchor, дубликаты и неверные имена', () => {
+		const w = new WorldBuilder([32, 16, 32], palette, 1);
+		w.anchor('well', [1, 2, 3]);
+		expect(w.anchors.well).toEqual([1, 2, 3]);
+		expect(() => w.anchor('well', [0, 0, 0])).toThrow('якорь "well" уже есть');
+		expect(() => w.anchor('a.b', [0, 0, 0])).toThrow('имя якоря');
+		w.place(marker, [5, 0, 5], { name: 'mill' });
+		expect(() => w.place(marker, [20, 0, 20], { name: 'mill' })).toThrow('якорь "mill.a" уже есть');
+	});
+
+	test('place не принимает модели с scale ≠ 1', () => {
+		const small = model({ size: [1, 1, 1], palette: { wood: '#6b4a2b' }, scale: 0.25 }, (m) =>
+			m.set([0, 0, 0], 'wood'),
+		);
+		const w = new WorldBuilder([8, 8, 8], palette, 1);
+		expect(() => w.place(small, [4, 0, 4])).toThrow('scale ≠ 1');
+	});
+});

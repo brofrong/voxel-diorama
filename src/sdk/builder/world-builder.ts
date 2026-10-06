@@ -1,6 +1,7 @@
 import type { Material, Vec3 } from '../../engine/types.ts';
 import { MAX_MATERIALS } from '../../engine/voxel/constants.ts';
 import { VoxelWorld } from '../../engine/voxel/world.ts';
+import { ANCHOR_NAME_RE, rotateFootprint } from '../anchors.ts';
 import { AIR, materialSignature } from '../materials.ts';
 import { createNoise2D, type Noise2D } from '../noise.ts';
 import { createRng, type Rng } from '../rng.ts';
@@ -30,6 +31,13 @@ export interface WaterOptions {
 
 export interface PlaceOptions {
 	rotate?: Rotation;
+	/** Если задано — якоря модели регистрируются в мире как `<name>.<якорь>`. */
+	name?: string;
+}
+
+export interface Placed {
+	/** Якоря модели в мировых координатах. */
+	anchors: Record<string, Vec3>;
 }
 
 export type ModelSource = Model | ((options: { rng: Rng }) => Model);
@@ -67,6 +75,7 @@ export class WorldBuilder extends VoxelCanvas {
 	private readonly byName = new Map<string, number>();
 	private readonly bySignature = new Map<string, number>();
 	private readonly paletteNames: ReadonlySet<string>;
+	private readonly anchorMap = new Map<string, Vec3>();
 
 	constructor(size: Vec3, palette: Record<string, Material>, seed: number) {
 		super();
@@ -87,6 +96,24 @@ export class WorldBuilder extends VoxelCanvas {
 
 	get materialNames(): readonly string[] {
 		return this.names;
+	}
+
+	/** Все якоря мира (копия). */
+	get anchors(): Record<string, Vec3> {
+		return Object.fromEntries([...this.anchorMap].map(([k, p]) => [k, [p[0], p[1], p[2]]]));
+	}
+
+	/** Регистрирует именованную точку мира (`well`, `bridge`). */
+	anchor(name: string, position: Vec3): void {
+		if (!ANCHOR_NAME_RE.test(name)) {
+			throw new Error(`имя якоря "${name}": латиница с маленькой буквы, без точек`);
+		}
+		this.registerAnchor(name, position);
+	}
+
+	private registerAnchor(name: string, p: Vec3): void {
+		if (this.anchorMap.has(name)) throw new Error(`якорь "${name}" уже есть`);
+		this.anchorMap.set(name, [p[0], p[1], p[2]]);
 	}
 
 	protected write(x: number, y: number, z: number, index: number): void {
@@ -180,8 +207,17 @@ export class WorldBuilder extends VoxelCanvas {
 	}
 
 	/** Ставит модель так, что `at` — её нижний центр. Пустота модели не стирает мир. */
-	place(source: Model, at: Vec3, options: PlaceOptions = {}): void {
+	place(source: Model, at: Vec3, options: PlaceOptions = {}): Placed {
+		if (source.scale !== 1) {
+			throw new Error('модели с scale ≠ 1 ставятся только как сущности (entities), не через place');
+		}
 		const rotate = options.rotate ?? 0;
+		if (!ROTATIONS.includes(rotate)) {
+			throw new Error(`rotate должен быть 0, 90, 180 или 270, получено ${rotate}`);
+		}
+		if (options.name !== undefined && !ANCHOR_NAME_RE.test(options.name)) {
+			throw new Error(`имя "${options.name}": латиница с маленькой буквы, без точек`);
+		}
 		const [sx, sy, sz] = source.size;
 		const ids = source.materials.map(({ name, material }) =>
 			this.resolveModelMaterial(name, material),
@@ -223,6 +259,13 @@ export class WorldBuilder extends VoxelCanvas {
 				}
 			}
 		}
+		const anchors: Record<string, Vec3> = {};
+		for (const [key, p] of Object.entries(source.anchors)) {
+			const [rx, rz] = rotateFootprint(p[0], p[2], sx, sz, rotate);
+			anchors[key] = [ox + rx, oy + p[1], oz + rz];
+			if (options.name !== undefined) this.registerAnchor(`${options.name}.${key}`, anchors[key]);
+		}
+		return { anchors };
 	}
 
 	/** Случайно расставляет модели по поверхности. Возвращает число поставленных. */

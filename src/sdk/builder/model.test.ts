@@ -67,6 +67,36 @@ describe('примитивы на ModelBuilder', () => {
 	});
 });
 
+describe('scale, pivot, anchors', () => {
+	test('по умолчанию scale 1, pivot — нижний центр, якорей нет', () => {
+		const m = model({ size: [4, 6, 2], palette }, () => {});
+		expect(m.scale).toBe(1);
+		expect(m.pivot).toEqual([2, 0, 1]);
+		expect(m.anchors).toEqual({});
+	});
+
+	test('явные scale, pivot и anchors сохраняются', () => {
+		const m = model(
+			{ size: [3, 3, 3], palette, scale: 0.25, pivot: [1.5, 3, 1.5], anchors: { hub: [1, 2, 0] } },
+			() => {},
+		);
+		expect(m.scale).toBe(0.25);
+		expect(m.pivot).toEqual([1.5, 3, 1.5]);
+		expect(m.anchors).toEqual({ hub: [1, 2, 0] });
+	});
+
+	test('scale вне (0, 1] — ошибка', () => {
+		expect(() => model({ size: [1, 1, 1], palette, scale: 0 }, () => {})).toThrow('scale модели');
+		expect(() => model({ size: [1, 1, 1], palette, scale: 2 }, () => {})).toThrow('scale модели');
+	});
+
+	test('имя якоря модели проверяется', () => {
+		expect(() =>
+			model({ size: [1, 1, 1], palette, anchors: { 'Bad.name': [0, 0, 0] } }, () => {}),
+		).toThrow('имя якоря');
+	});
+});
+
 describe('normalizeMaterial', () => {
 	test('строка → solid без свечения', () => {
 		expect(normalizeMaterial('#AABBCC')).toEqual({ color: '#aabbcc', emissive: 0, kind: 'solid' });
