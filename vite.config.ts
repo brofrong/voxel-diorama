@@ -1,9 +1,13 @@
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
+import { dioramaDev } from './vite/diorama-dev.ts';
+import { thumbnailDev } from './vite/thumbnail.ts';
 
 export default defineConfig({
 	plugins: [
+		dioramaDev(),
+		thumbnailDev(),
 		sveltekit({
 			compilerOptions: {
 				// Runes-режим для всего проекта, кроме библиотек.
