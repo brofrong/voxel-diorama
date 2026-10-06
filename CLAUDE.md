@@ -38,3 +38,5 @@ Bun · SvelteKit 3 + Svelte 5 (runes) · Vite 8 · Three.js (`WebGPURenderer` + 
 - SvelteKit 3: конфиг кита в `vite.config.ts`, окружение — `$app/env`.
 - Скриншоты и визуальные проверки — через встроенный браузер T3 (`preview_*`), Playwright не используем.
 - Тесты — `bun test`, рядом с кодом (`*.test.ts`). Перед коммитом — `bun run format && bun run check`.
+- Сущности (`entities`): модели и rig'и с поведениями (`spin`, `bob`, `sway`, `orbit`, `keyframes`, `walkPath`, `wander`, `flock`, `custom`). Поза — функция от `t` и seed (детерминизм). Лицо сущности — +z, углы для авторов — в градусах.
+- Якоря: `w.place(model, at, { name })` даёт `<name>.<якорь>`, `w.anchor(name, pos)` — свою точку; сущности ссылаются строкой (`at: 'mill.hub'`). Якоря запекаются в `.vxb` v2.

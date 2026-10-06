@@ -33,6 +33,23 @@ bun run diorama:new <slug> "Название"
 - Ключ палитры с именем, совпадающим с материалом префаба (`leaves`, `trunk`, `needles`, `wall`, `roof`, `door`, `window`, `chimney`, `stone`, `stone-dark`), перекрашивает этот префаб везде в диораме — используй осознанно.
 - Корневые поля: `meta`, `seed`, `size`, `palette`, `build`, `atmosphere: { time: { fixed }, fog }` (туман 0–0.004 — он быстро «выбеливает» цвета, обычно 0), `camera`, `base: 'none' | 'wood' | 'stone'`.
 
+### Сущности (анимация)
+
+```ts
+entities: [
+  { id: 'blades', model: prefabs.windmillBlades(), at: 'mill.hub', animate: spin({ axis: 'z', speed: 0.2 }) },
+  { rig: prefabs.villager(), animate: walkPath(['mill.door', [50, 30], 'house.door'], { loop: 'pingpong', pause: 2 }) },
+  { rig: prefabs.bird(), count: 6, animate: flock({ center: [48, 28, 40], radius: 14 }) },
+]
+```
+
+- `at`: `[x, z]` — на земле, `[x, y, z]` — точно, строка — якорь. `at` — это pivot модели (по умолчанию нижний центр); у `windmillBlades` pivot — ступица.
+- Якоря: `w.place(prefabs.windmill(), p, { name: 'mill' })` → `mill.hub`, `mill.door`; `prefabs.house` даёт `door`; `w.anchor('well', p)`.
+- Поведения: `spin`, `bob`, `sway` (добавляются к позе); `walkPath`, `wander`, `orbit`, `flock`, `keyframes` (задают позицию); `custom((pose, t, ctx) => …)` — только от `t`/`ctx`, без `Math.random`.
+- Префабы: `villager`, `cat`, `bird` (rig, scale 0.25), `windmill`, `windmillBlades`, `boat` (scale 0.5). Своя модель сущности может быть мелкой: `model({ size, palette, scale: 0.25, pivot }, …)`.
+- Лимиты: ≤ 256 экземпляров, ≤ 600 частей, модель ≤ 64³.
+- `camera.captureTime` — секунда анимации для кадра карточки (по умолчанию 2).
+
 ## 3. Проверка
 
 ```bash
@@ -51,6 +68,7 @@ bun run diorama:check <slug>
    - палитра гармоничная, контраст между материалами достаточный;
    - нет висящих в воздухе вокселей и деревьев в воде/на крышах;
    - масштаб объектов согласован (дом выше человека, деревья не гигантские);
+   - анимации: 2 снимка с разницей 2–3 с — объекты сдвинулись; ходоки идут по земле/мосту, а не сквозь рельеф; лопасти на ступице; стая не улетает за кадр;
    - в консоли нет ошибок (смотри diagnostics в snapshot).
 5. Правь код — вьюер обновится сам (HMR). Изменения воксельного содержимого применяются на лету; изменения `camera`/`fog`/`size`/`base` перезагружают страницу автоматически. 3–5 итераций максимум; если не выходит — покажи пользователю текущее состояние и спроси.
 
