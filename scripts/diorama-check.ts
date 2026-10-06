@@ -1,6 +1,13 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { bakeToVxb, bakeWarnings, SIZE_LIMIT_BYTES, SLUG_RE } from '#sdk';
+import {
+	bakeToVxb,
+	bakeWarnings,
+	checkEntities,
+	entityWarnings,
+	SIZE_LIMIT_BYTES,
+	SLUG_RE,
+} from '#sdk';
 import { listSlugs, loadDiorama, ROOT } from './lib/dioramas.ts';
 
 const args = process.argv.slice(2);
@@ -37,7 +44,7 @@ for (const slug of targets) {
 		if (!SLUG_RE.test(slug)) throw new Error(`некорректный slug "${slug}"`);
 		const diorama = await loadDiorama(slug);
 		const started = performance.now();
-		const { stats } = await bakeToVxb(diorama);
+		const { stats, result } = await bakeToVxb(diorama);
 		const ms = Math.round(performance.now() - started);
 		if (stats.bytes > SIZE_LIMIT_BYTES) {
 			throw new Error(
@@ -50,7 +57,15 @@ for (const slug of targets) {
 		console.log(
 			`  вокселей ${stats.voxels.toLocaleString('ru-RU')} · чанков ${stats.chunks} · материалов ${stats.materials} · ${formatBytes(stats.bytes)} · ${ms} мс`,
 		);
-		for (const warning of bakeWarnings(stats)) console.log(`  ⚠ ${warning}`);
+		const entityStats = checkEntities(diorama, result);
+		if (entityStats.entities > 0) {
+			console.log(
+				`  сущностей ${entityStats.entities} · экземпляров ${entityStats.instances} · частей ${entityStats.parts}`,
+			);
+		}
+		for (const warning of [...bakeWarnings(stats), ...entityWarnings(entityStats)]) {
+			console.log(`  ⚠ ${warning}`);
+		}
 		if (!existsSync(join(ROOT, 'static/thumbs', `${slug}.webp`))) {
 			console.log(
 				`  ⚠ нет скриншота static/thumbs/${slug}.webp — сделай его (skill new-diorama, шаг 5)`,

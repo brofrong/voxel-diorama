@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { bakeToVxb, SIZE_LIMIT_BYTES, SLUG_RE } from '#sdk';
+import { bakeToVxb, checkEntities, SIZE_LIMIT_BYTES, SLUG_RE } from '#sdk';
 import { listDioramaDirs, listSlugs, loadDiorama } from '../../scripts/lib/dioramas.ts';
 
 test('папки диорам названы в kebab-case', () => {
@@ -18,5 +18,6 @@ for (const slug of listSlugs()) {
 		expect(a.stats.voxels).toBeGreaterThan(0);
 		expect(a.stats.bytes).toBeLessThan(SIZE_LIMIT_BYTES);
 		expect(Buffer.from(a.bytes).equals(Buffer.from(b.bytes))).toBe(true);
+		expect(() => checkEntities(diorama, a.result)).not.toThrow();
 	}, 30_000);
 }

@@ -8,6 +8,7 @@ export {
 	spin,
 	sway,
 } from './behaviours.ts';
+export { checkEntities, type EntityStats, entityWarnings } from './check.ts';
 export { type WalkPathOptions, walkPath } from './path.ts';
 export {
 	poseRig,
