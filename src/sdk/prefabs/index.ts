@@ -1,4 +1,10 @@
+export { type BirdOptions, bird } from './bird.ts';
+export { boat } from './boat.ts';
+export { type CatOptions, cat } from './cat.ts';
 export { type HouseOptions, house } from './house.ts';
 export { type PineOptions, pine } from './pine.ts';
 export { type RockOptions, rock } from './rock.ts';
 export { type TreeOptions, tree } from './tree.ts';
+export { type VillagerOptions, villager } from './villager.ts';
+export { type WindmillOptions, windmill } from './windmill.ts';
+export { windmillBlades } from './windmill-blades.ts';
