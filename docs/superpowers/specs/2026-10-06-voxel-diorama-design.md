@@ -96,7 +96,7 @@ export default defineDiorama({
   lights?: LightDef[],                   // этап 3
   atmosphere?: AtmosphereDef,
   camera?: { position, target, autoRotate?, minDistance?, maxDistance? },
-  base?: { style: 'wood' | 'stone' } | null,   // подставка; по умолчанию 'wood'
+  base?: 'none' | 'wood' | 'stone',          // подставка; по умолчанию 'none'
 });
 ```
 
