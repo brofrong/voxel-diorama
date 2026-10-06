@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { Material } from '../types.ts';
-import { CHUNK } from './constants.ts';
+import { CHUNK, CHUNK_VOLUME } from './constants.ts';
 import { decodeVxb, encodeVxb, VXB_VERSION, VxbError } from './vxb.ts';
 import { VoxelWorld } from './world.ts';
 
@@ -65,5 +65,19 @@ describe('vxb', () => {
 		world.set(3, 3, 3, 1);
 		const bytes = await encodeVxb({ world, materials });
 		await expect(decodeVxb(bytes.subarray(0, bytes.length - 6))).rejects.toBeInstanceOf(VxbError);
+	});
+
+	test('значение вокселя вне диапазона материалов → VxbError', async () => {
+		const world = new VoxelWorld([8, 8, 8]);
+		world.set(0, 0, 0, materials.length + 1);
+		const bytes = await encodeVxb({ world, materials });
+		await expect(decodeVxb(bytes)).rejects.toBeInstanceOf(VxbError);
+	});
+
+	test('координаты чанка вне мира → VxbError', async () => {
+		const world = new VoxelWorld([32, 32, 32]);
+		world.setChunk([5, 0, 0], new Uint8Array(CHUNK_VOLUME).fill(1));
+		const bytes = await encodeVxb({ world, materials });
+		await expect(decodeVxb(bytes)).rejects.toBeInstanceOf(VxbError);
 	});
 });

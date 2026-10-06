@@ -1,5 +1,5 @@
 import type { Material, Vec3 } from '../types.ts';
-import { CHUNK_VOLUME, MAX_MATERIALS } from './constants.ts';
+import { CHUNK, CHUNK_VOLUME, MAX_MATERIALS } from './constants.ts';
 import { hexToRgb8, KIND_CODE, KIND_NAME, rgb8ToHex } from './palette.ts';
 import { VoxelWorld } from './world.ts';
 
@@ -188,15 +188,24 @@ export async function decodeVxb(input: ArrayBuffer | Uint8Array): Promise<VxbDat
 	}
 
 	const world = new VoxelWorld(size);
+	const maxChunk: Vec3 = [
+		Math.ceil(size[0] / CHUNK),
+		Math.ceil(size[1] / CHUNK),
+		Math.ceil(size[2] / CHUNK),
+	];
 	const chunkCount = r.u32();
 	for (let c = 0; c < chunkCount; c++) {
 		const coord: Vec3 = [r.u16(), r.u16(), r.u16()];
+		if (coord[0] >= maxChunk[0] || coord[1] >= maxChunk[1] || coord[2] >= maxChunk[2]) {
+			throw new VxbError('повреждённый чанк в .vxb');
+		}
 		const runCount = r.u32();
 		const data = new Uint8Array(CHUNK_VOLUME);
 		let offset = 0;
 		for (let i = 0; i < runCount; i++) {
 			const length = r.u16();
 			const value = r.u8();
+			if (value > materialCount) throw new VxbError('повреждённый чанк в .vxb');
 			if (offset + length > CHUNK_VOLUME) throw new VxbError('повреждённый чанк в .vxb');
 			data.fill(value, offset, offset + length);
 			offset += length;
