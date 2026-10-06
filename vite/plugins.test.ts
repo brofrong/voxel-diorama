@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { parseBakedPath, slugFromChangedFile } from './diorama-dev.ts';
+import { affectsBake, parseBakedPath, slugFromChangedFile } from './diorama-dev.ts';
 import { hasThumbHeader, isWebp, parseThumbPath } from './thumbnail.ts';
 
 test('parseBakedPath', () => {
@@ -15,6 +15,14 @@ test('slugFromChangedFile', () => {
 	expect(slugFromChangedFile('/p', '/p/src/dioramas/quiet-valley/models.ts')).toBe('quiet-valley');
 	expect(slugFromChangedFile('/p', '/p/src/sdk/prefabs/tree.ts')).toBe('*');
 	expect(slugFromChangedFile('/p', '/p/src/routes/+page.svelte')).toBeNull();
+});
+
+test('affectsBake', () => {
+	expect(affectsBake('/p', '/p/src/sdk/prefabs/tree.ts')).toBe(true);
+	expect(affectsBake('/p', '/p/src/engine/voxel/vxb.ts')).toBe(true);
+	expect(affectsBake('/p', '/p/src/dioramas/quiet-valley/index.ts')).toBe(true);
+	expect(affectsBake('/p', '/p/src/routes/+page.svelte')).toBe(false);
+	expect(affectsBake('/p', '/p/src/lib/components/Viewer.svelte')).toBe(false);
 });
 
 test('parseThumbPath', () => {

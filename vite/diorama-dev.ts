@@ -22,6 +22,14 @@ export function slugFromChangedFile(root: string, file: string): string | null {
 	return null;
 }
 
+/** Затрагивает ли изменение файла результат запекания (SDK, движок или сама диорама). */
+export function affectsBake(root: string, file: string): boolean {
+	const rel = relative(root, file).split(sep).join('/');
+	return (
+		rel.startsWith('src/sdk/') || rel.startsWith('src/engine/') || rel.startsWith('src/dioramas/')
+	);
+}
+
 /** Dev: запекание диорам на лету и HMR-событие `diorama:update`. */
 export function dioramaDev(): Plugin {
 	return {
@@ -61,7 +69,18 @@ export function dioramaDev(): Plugin {
 				}
 			});
 
+			// SDK/движок не входят в SSR-граф диорамы напрямую (она импортирует их лениво через
+			// ssrLoadModule в обработчике /baked), поэтому Vite не инвалидирует их сам при HMR —
+			// без этого правок кэш и ssrLoadModule продолжали бы отдавать старый код/байты.
+			const invalidateBake = (file: string): void => {
+				if (!affectsBake(server.config.root, file)) return;
+				cache.clear();
+				server.environments.ssr.moduleGraph.invalidateAll();
+			};
+			server.watcher.on('add', invalidateBake);
+			server.watcher.on('unlink', invalidateBake);
 			server.watcher.on('change', (file) => {
+				invalidateBake(file);
 				const slug = slugFromChangedFile(server.config.root, file);
 				if (slug) server.ws.send({ type: 'custom', event: 'diorama:update', data: { slug } });
 			});
