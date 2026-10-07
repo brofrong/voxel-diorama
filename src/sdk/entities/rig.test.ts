@@ -57,6 +57,18 @@ describe('rig', () => {
 				parts: { ...bipedParts(), head: { model: limb(), parent: 'body' } },
 			}),
 		).toThrow('нет at');
+		expect(() =>
+			rig({
+				skeleton: 'biped',
+				parts: { ...bipedParts(), head: { model: limb(), at: [0, 0, 0] } },
+			}),
+		).toThrow('нет parent');
+		expect(() =>
+			rig({
+				skeleton: 'biped',
+				parts: { ...bipedParts(), head: { model: limb(), parent: 'alien', at: [0, 0, 0] } },
+			}),
+		).toThrow('неизвестный parent');
 		const cyclic = bipedParts();
 		cyclic.head = { model: limb(), parent: 'armL', at: [0, 0, 0] };
 		cyclic.armL = { model: limb(), parent: 'head', at: [0, 0, 0] };

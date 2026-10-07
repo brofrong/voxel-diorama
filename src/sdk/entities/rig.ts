@@ -81,8 +81,11 @@ export function rig(options: RigOptions): Rig {
 	for (const name of names) {
 		if (name === 'body') continue;
 		const part = parts[name];
-		if (part.parent === undefined || !(part.parent in parts)) {
-			throw new Error(`rig: у части "${name}" неизвестный parent "${part.parent ?? ''}"`);
+		if (part.parent === undefined) {
+			throw new Error(`rig: у части "${name}" нет parent`);
+		}
+		if (!(part.parent in parts)) {
+			throw new Error(`rig: у части "${name}" неизвестный parent "${part.parent}"`);
 		}
 		if (!part.at) throw new Error(`rig: у части "${name}" нет at (точки крепления)`);
 	}
