@@ -24,11 +24,14 @@
 	const worldUrl = (bust: boolean) => `/baked/${card.slug}.vxb${bust ? `?t=${Date.now()}` : ''}`;
 
 	// Время суток — единственное, что применяется без перезагрузки страницы (см. reload()).
-	const sceneFingerprint = (s: SceneConfig): string => JSON.stringify({ ...s, time: undefined });
+	// Старт и скорость времени применяются без перезагрузки страницы; остальное — см. reload().
+	const sceneFingerprint = (s: SceneConfig): string =>
+		JSON.stringify({ ...s, time: { cycle: s.time.cycle } });
 
-	// После HMR-обновления данных подхватываем новое время суток.
 	$effect(() => {
-		controller?.setTime(scene.time);
+		if (!controller) return;
+		controller.setHour(scene.time.start);
+		controller.setTimeSpeed(scene.time.speed);
 	});
 
 	async function entitiesFor(diorama: Diorama): Promise<EntityFactory> {

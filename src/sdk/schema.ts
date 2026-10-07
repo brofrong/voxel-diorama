@@ -2,6 +2,16 @@ import { z } from 'zod';
 import type { SceneConfig, Vec3 } from '../engine/types.ts';
 import { MAX_MATERIALS } from '../engine/voxel/constants.ts';
 import { ANCHOR_REF_RE } from './anchors.ts';
+import {
+	isSkyInput,
+	isTimeInput,
+	normalizeSky,
+	normalizeTime,
+	SKY_ERROR,
+	type SkyInput,
+	TIME_ERROR,
+	type TimeInput,
+} from './atmosphere/config.ts';
 import { isModel, type Model } from './builder/model.ts';
 import type { WorldBuilder } from './builder/world-builder.ts';
 import { isRig, type Rig } from './entities/rig.ts';
@@ -140,8 +150,13 @@ export const dioramaSchema = z.strictObject({
 	atmosphere: z
 		.strictObject({
 			time: z
-				.strictObject({ fixed: z.enum(['dawn', 'day', 'sunset', 'night']) })
-				.prefault({ fixed: 'day' }),
+				.custom<TimeInput>((v) => v === undefined || isTimeInput(v), TIME_ERROR)
+				.optional()
+				.transform((v) => normalizeTime(v)),
+			sky: z
+				.custom<SkyInput>((v) => v === undefined || isSkyInput(v), SKY_ERROR)
+				.optional()
+				.transform((v) => normalizeSky(v)),
 			fog: z.number().min(0).max(0.05).default(0),
 		})
 		.prefault({}),
@@ -194,7 +209,9 @@ export function toSceneConfig(d: Diorama): SceneConfig {
 	];
 	return {
 		size: [sx, sy, sz],
-		time: d.atmosphere.time.fixed,
+		time: d.atmosphere.time,
+		sky: d.atmosphere.sky,
+		seed: d.seed,
 		fog: d.atmosphere.fog,
 		base: d.base,
 		camera: {

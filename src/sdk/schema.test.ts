@@ -22,9 +22,18 @@ describe('defineDiorama', () => {
 		expect(d.base).toBe('none');
 		expect(d.meta.tags).toEqual([]);
 		expect(d.meta.description).toBe('');
-		expect(d.atmosphere).toEqual({ time: { fixed: 'day' }, fog: 0 });
+		expect(d.atmosphere).toEqual({
+			time: { start: 13, speed: 0, cycle: 120 },
+			sky: { kind: 'gradient' },
+			fog: 0,
+		});
 		expect(d.camera.autoRotate).toBe(true);
 		expect(d.palette.grass).toEqual({ color: '#6aa84f', emissive: 0, kind: 'solid' });
+	});
+
+	test('неверное время — понятная ошибка', () => {
+		const input = { ...minimal(), atmosphere: { time: { speed: 3 } } } as unknown as DioramaInput;
+		expect(() => defineDiorama(input)).toThrow('time: ожидается');
 	});
 
 	test('неверный цвет — DioramaValidationError с путём и названием', () => {
@@ -76,8 +85,21 @@ describe('toSceneConfig', () => {
 		expect(scene.camera.target).toEqual([32, 6.4, 24]);
 		expect(scene.camera.position[1]).toBeGreaterThan(scene.camera.target[1]);
 		expect(scene.camera.maxDistance).toBeGreaterThan(scene.camera.minDistance);
-		expect(scene.time).toBe('day');
+		expect(scene.time).toEqual({ start: 13, speed: 0, cycle: 120 });
 		expect(scene.base).toBe('none');
+	});
+
+	test('SceneConfig получает время, небо и seed', () => {
+		const scene = toSceneConfig(
+			defineDiorama({
+				...minimal(),
+				seed: 9,
+				atmosphere: { time: { fixed: 'night' }, sky: 'realistic' },
+			}),
+		);
+		expect(scene.time).toEqual({ start: 23, speed: 0, cycle: 120 });
+		expect(scene.sky).toEqual({ kind: 'realistic' });
+		expect(scene.seed).toBe(9);
 	});
 
 	test('явные параметры камеры сохраняются', () => {

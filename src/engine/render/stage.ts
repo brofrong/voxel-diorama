@@ -11,10 +11,11 @@ import {
 	Vector3,
 	type WebGPURenderer,
 } from 'three/webgpu';
-import { LIGHTING } from '../atmosphere/presets.ts';
+import { directionalLight, emissiveScale, nightFactor, paletteAt } from '../atmosphere/daycycle.ts';
 import { createSky, type Sky } from '../atmosphere/sky.ts';
-import type { SceneConfig, TimeOfDay } from '../types.ts';
+import type { SceneConfig } from '../types.ts';
 import { createBaseMaterial } from './materials.ts';
+import type { AtmosphereUniforms } from './uniforms.ts';
 
 function disposeGroup(group: Group): void {
 	group.traverse((object) => {
@@ -40,6 +41,7 @@ export class Stage {
 	constructor(
 		private readonly renderer: WebGPURenderer,
 		config: SceneConfig,
+		private readonly uniforms: AtmosphereUniforms,
 	) {
 		const [sx, sy, sz] = config.size;
 		this.center = new Vector3(sx / 2, sy / 2, sz / 2);
@@ -85,22 +87,27 @@ export class Stage {
 			this.scene.add(this.base);
 		}
 
-		this.setTime(config.time);
+		this.setHour(config.time.start);
 	}
 
-	setTime(time: TimeOfDay): void {
-		const p = LIGHTING[time];
-		const direction = new Vector3(...p.sunDirection).normalize();
+	setHour(hour: number): void {
+		const p = paletteAt(hour);
+		const light = directionalLight(hour);
+		const night = nightFactor(hour);
+		const direction = new Vector3(...light.direction);
 		this.sun.position.copy(this.center).addScaledVector(direction, this.radius * 2);
 		this.sun.target.position.copy(this.center);
 		this.sun.color.set(p.sunColor);
-		this.sun.intensity = p.sunIntensity;
+		this.sun.intensity = p.sunIntensity * light.intensityFactor;
 		this.hemi.color.set(p.hemiSky);
 		this.hemi.groundColor.set(p.hemiGround);
 		this.hemi.intensity = p.hemiIntensity;
 		this.sky.setColors(p.zenith, p.horizon);
 		this.fog.color.set(p.fog);
 		this.renderer.toneMappingExposure = p.exposure;
+		this.uniforms.night.value = night;
+		this.uniforms.emissiveScale.value = emissiveScale(night);
+		this.uniforms.horizon.value.set(p.horizon);
 	}
 
 	resize(width: number, height: number): void {

@@ -1,9 +1,11 @@
 import { Group } from 'three/webgpu';
+import { DayClock, TIME_SYNONYMS } from './atmosphere/daycycle.ts';
 import { EntityLayer } from './entities/layer.ts';
 import { fetchBytes } from './load.ts';
 import { createWorldMaterials } from './render/materials.ts';
 import { backendName, createRenderer } from './render/renderer.ts';
 import { Stage } from './render/stage.ts';
+import { createAtmosphereUniforms } from './render/uniforms.ts';
 import type { EntityFactory, SceneConfig, TimeOfDay, WorldContext } from './types.ts';
 import { buildHeightmap } from './voxel/heightmap.ts';
 import { MesherPool } from './voxel/mesher-pool.ts';
@@ -19,6 +21,9 @@ export type {
 	EntityFactory,
 	EntityInstance,
 	SceneConfig,
+	SkyConfig,
+	SkyKind,
+	TimeConfig,
 	TimeOfDay,
 	Vec3,
 	WorldContext,
@@ -45,7 +50,12 @@ export interface CaptureOptions {
 export interface DioramaController {
 	readonly backend: 'webgpu' | 'webgl2';
 	readonly paused: boolean;
+	/** Синоним для `setHour` (dawn 6.5, day 13, sunset 18.5, night 23). */
 	setTime(time: TimeOfDay): void;
+	setHour(hour: number): void;
+	getHour(): number;
+	setTimeSpeed(speed: number): void;
+	getTimeSpeed(): number;
 	pause(): void;
 	resume(): void;
 	/** Перезагрузить мир (и сущности) без перезагрузки страницы; камера сохраняется. */
@@ -64,8 +74,12 @@ export async function mountDiorama(
 	options: MountOptions,
 ): Promise<DioramaController> {
 	const renderer = await createRenderer(canvas);
-	const stage = new Stage(renderer, config);
-	const materials = createWorldMaterials();
+	const uniforms = createAtmosphereUniforms();
+	const stage = new Stage(renderer, config, uniforms);
+	const materials = createWorldMaterials(uniforms);
+	const capture = options.fixedTime !== undefined;
+	const clock = new DayClock(config.time);
+	const currentHour = (): number => (capture ? config.time.start : clock.hour);
 	let pool: MesherPool | null = null;
 	let userPaused = false;
 	let disposed = false;
@@ -77,6 +91,8 @@ export async function mountDiorama(
 	let lastFrame = performance.now();
 
 	const frame = (): void => {
+		uniforms.time.value = animTime;
+		stage.setHour(currentHour());
 		layer?.update(animTime);
 		stage.render();
 	};
@@ -97,8 +113,10 @@ export async function mountDiorama(
 
 	const loop = (): void => {
 		const now = performance.now();
-		if (options.fixedTime === undefined) {
-			animTime += Math.min(0.1, Math.max(0, (now - lastFrame) / 1000));
+		const dt = Math.min(0.1, Math.max(0, (now - lastFrame) / 1000));
+		if (!capture) {
+			animTime += dt;
+			clock.advance(dt);
 		}
 		lastFrame = now;
 		frame();
@@ -177,10 +195,19 @@ export async function mountDiorama(
 		get paused() {
 			return userPaused;
 		},
-		setTime: (time) => {
-			stage.setTime(time);
+		setTime(time) {
+			clock.setHour(TIME_SYNONYMS[time]);
 			redrawIfIdle();
 		},
+		setHour(hour) {
+			clock.setHour(hour);
+			redrawIfIdle();
+		},
+		getHour: currentHour,
+		setTimeSpeed(speed) {
+			clock.setSpeed(speed);
+		},
+		getTimeSpeed: () => (capture ? 0 : clock.speed),
 		pause() {
 			userPaused = true;
 			syncLoop();

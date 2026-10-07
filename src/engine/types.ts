@@ -37,7 +37,10 @@ export interface CameraConfig {
 /** Всё, что движку нужно знать о диораме помимо вокселей. Сериализуемо (идёт из prerender). */
 export interface SceneConfig {
 	size: Vec3;
-	time: TimeOfDay;
+	time: TimeConfig;
+	sky: SkyConfig;
+	/** Seed диорамы — для звёзд и облаков неба. */
+	seed: number;
 	fog: number;
 	camera: CameraConfig;
 	base: BaseStyle;
