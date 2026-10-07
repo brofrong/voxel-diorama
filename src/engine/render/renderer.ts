@@ -18,7 +18,6 @@ export async function createRenderer(canvas: HTMLCanvasElement): Promise<WebGPUR
 		const reason = error instanceof Error ? error.message : String(error);
 		throw new NoGraphicsError(`браузер не поддерживает ни WebGPU, ни WebGL2 (${reason})`);
 	}
-	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 	renderer.toneMapping = ACESFilmicToneMapping;
 	renderer.shadowMap.enabled = true;
 	renderer.shadowMap.type = PCFShadowMap;

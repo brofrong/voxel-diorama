@@ -1,4 +1,5 @@
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSMShadowNode } from 'three/addons/csm/CSMShadowNode.js';
 import {
 	BoxGeometry,
 	DirectionalLight,
@@ -20,8 +21,10 @@ import {
 	sunDirection,
 } from '../atmosphere/daycycle.ts';
 import { createSkyView, type SkyView } from '../atmosphere/skies.ts';
-import type { SceneConfig, SkyConfig } from '../types.ts';
+import type { QualityLevel, SceneConfig, SkyConfig } from '../types.ts';
 import { createBaseMaterial } from './materials.ts';
+import { createPipeline, type Pipeline } from './pipeline.ts';
+import { CSM_MIN_SPAN, QUALITY_PRESETS, type QualityPreset } from './quality.ts';
 import type { AtmosphereUniforms } from './uniforms.ts';
 
 function disposeGroup(group: Group): void {
@@ -48,6 +51,12 @@ export class Stage {
 	private readonly center: Vector3;
 	private readonly radius: number;
 	private base: Mesh | null = null;
+	quality: QualityLevel = 'high';
+	preset: QualityPreset = QUALITY_PRESETS.high;
+	private pipeline: Pipeline | null = null;
+	private readonly span: number;
+	/** CSM подключается при сборке шейдера света — решается один раз, до первого кадра. */
+	private shadowsFrozen = false;
 
 	constructor(
 		private readonly renderer: WebGPURenderer,
@@ -57,6 +66,7 @@ export class Stage {
 		const [sx, sy, sz] = config.size;
 		this.center = new Vector3(sx / 2, sy / 2, sz / 2);
 		this.radius = Math.hypot(sx, sy, sz) / 2;
+		this.span = Math.max(sx, sz);
 
 		const far = config.camera.maxDistance * 2 + this.radius * 4;
 		this.camera = new PerspectiveCamera(40, 1, 0.5, far);
@@ -101,6 +111,7 @@ export class Stage {
 			this.scene.add(this.base);
 		}
 
+		this.setQuality('high');
 		this.setHour(config.time.start);
 	}
 
@@ -126,6 +137,7 @@ export class Stage {
 		});
 		this.fog.color.set(p.fog);
 		this.renderer.toneMappingExposure = p.exposure;
+		this.pipeline?.setNight(night);
 		this.uniforms.night.value = night;
 		this.uniforms.emissiveScale.value = emissiveScale(night);
 		this.uniforms.horizon.value.set(p.horizon);
@@ -139,6 +151,32 @@ export class Stage {
 		this.setHour(this.lastHour);
 	}
 
+	setQuality(level: QualityLevel): void {
+		this.quality = level;
+		this.preset = QUALITY_PRESETS[level];
+		this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.preset.dpr));
+		this.sun.shadow.mapSize.set(this.preset.shadowMapSize, this.preset.shadowMapSize);
+		if (!this.shadowsFrozen) {
+			const shadow = this.sun.shadow as typeof this.sun.shadow & { shadowNode?: CSMShadowNode };
+			const wantCsm = this.preset.csm && this.span > CSM_MIN_SPAN;
+			if (wantCsm && !shadow.shadowNode) {
+				shadow.shadowNode = new CSMShadowNode(this.sun, {
+					cascades: 3,
+					maxFar: this.camera.far,
+					mode: 'practical',
+					lightMargin: this.radius,
+				});
+			} else if (!wantCsm && shadow.shadowNode) {
+				shadow.shadowNode.dispose();
+				// undefined, не null: AnalyticLightNode проверяет именно `!== undefined`.
+				shadow.shadowNode = undefined;
+			}
+		}
+		this.uniforms.waves.value = this.preset.waves ? 1 : 0;
+		this.pipeline?.dispose();
+		this.pipeline = createPipeline(this.renderer, this.scene, this.camera, this.preset);
+	}
+
 	resize(width: number, height: number): void {
 		this.renderer.setSize(width, height, false);
 		this.camera.aspect = width / height;
@@ -148,7 +186,8 @@ export class Stage {
 	render(): void {
 		this.controls.update();
 		this.skyView.follow(this.camera.position);
-		this.renderer.render(this.scene, this.camera);
+		this.shadowsFrozen = true;
+		this.pipeline?.render();
 	}
 
 	/** Подменяет мир целиком (HMR): новая группа уже полностью смеширована. */
@@ -163,6 +202,7 @@ export class Stage {
 		disposeGroup(this.world);
 		this.controls.dispose();
 		this.skyView.dispose();
+		this.pipeline?.dispose();
 		if (this.base) {
 			this.base.geometry.dispose();
 			(this.base.material as { dispose(): void }).dispose();

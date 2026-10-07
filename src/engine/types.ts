@@ -2,6 +2,8 @@ export type Vec3 = [number, number, number];
 export type TimeOfDay = 'dawn' | 'day' | 'sunset' | 'night';
 export type BaseStyle = 'none' | 'wood' | 'stone';
 export type MaterialKind = 'solid' | 'water' | 'glass';
+export type QualityLevel = 'low' | 'medium' | 'high';
+export type QualitySetting = 'auto' | QualityLevel;
 
 /** Время суток диорамы: час начала, скорость (×), длина суток в секундах при 1x. */
 export interface TimeConfig {

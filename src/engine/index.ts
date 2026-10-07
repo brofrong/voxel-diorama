@@ -3,10 +3,24 @@ import { DayClock, TIME_SYNONYMS } from './atmosphere/daycycle.ts';
 import { EntityLayer } from './entities/layer.ts';
 import { fetchBytes } from './load.ts';
 import { createWorldMaterials } from './render/materials.ts';
+import {
+	type DeviceCaps,
+	lowerQuality,
+	resolveQuality,
+	shouldDowngrade,
+} from './render/quality.ts';
 import { backendName, createRenderer } from './render/renderer.ts';
 import { Stage } from './render/stage.ts';
 import { createAtmosphereUniforms } from './render/uniforms.ts';
-import type { EntityFactory, SceneConfig, SkyConfig, TimeOfDay, WorldContext } from './types.ts';
+import type {
+	EntityFactory,
+	QualityLevel,
+	QualitySetting,
+	SceneConfig,
+	SkyConfig,
+	TimeOfDay,
+	WorldContext,
+} from './types.ts';
 import { buildHeightmap } from './voxel/heightmap.ts';
 import { MesherPool } from './voxel/mesher-pool.ts';
 import { buildPaletteLUT } from './voxel/palette.ts';
@@ -20,6 +34,8 @@ export type {
 	CameraConfig,
 	EntityFactory,
 	EntityInstance,
+	QualityLevel,
+	QualitySetting,
 	SceneConfig,
 	SkyConfig,
 	SkyKind,
@@ -39,6 +55,8 @@ export interface MountOptions {
 	entities?: EntityFactory;
 	/** Зафиксировать время анимации (режим скриншота). */
 	fixedTime?: number;
+	/** Качество картинки; по умолчанию 'auto'. В режиме скриншота всегда high. */
+	quality?: QualitySetting;
 }
 
 export interface CaptureOptions {
@@ -58,6 +76,8 @@ export interface DioramaController {
 	getTimeSpeed(): number;
 	setSky(sky: SkyConfig): void;
 	getSky(): SkyConfig;
+	setQuality(setting: QualitySetting): void;
+	getQuality(): { setting: QualitySetting; effective: QualityLevel };
 	pause(): void;
 	resume(): void;
 	/** Перезагрузить мир (и сущности) без перезагрузки страницы; камера сохраняется. */
@@ -82,6 +102,19 @@ export async function mountDiorama(
 	const capture = options.fixedTime !== undefined;
 	const clock = new DayClock(config.time);
 	const currentHour = (): number => (capture ? config.time.start : clock.hour);
+	const caps: DeviceCaps = {
+		backend: backendName(renderer),
+		cores: navigator.hardwareConcurrency || 4,
+		coarsePointer: window.matchMedia('(pointer: coarse)').matches,
+	};
+	let qualitySetting: QualitySetting = options.quality ?? 'auto';
+	let frameSamples: number[] | null = null;
+	const applyQuality = (): void => {
+		stage.setQuality(resolveQuality(qualitySetting, caps, capture));
+		// Наблюдаем первые 3 с только в «Авто» и не в режиме скриншота.
+		frameSamples = qualitySetting === 'auto' && !capture ? [] : null;
+	};
+	applyQuality();
 	let pool: MesherPool | null = null;
 	let userPaused = false;
 	let disposed = false;
@@ -119,6 +152,14 @@ export async function mountDiorama(
 		if (!capture) {
 			animTime += dt;
 			clock.advance(dt);
+		}
+		if (frameSamples) {
+			frameSamples.push(dt * 1000);
+			const verdict = shouldDowngrade(frameSamples);
+			if (verdict !== null) {
+				frameSamples = null;
+				if (verdict) stage.setQuality(lowerQuality(stage.quality));
+			}
 		}
 		lastFrame = now;
 		frame();
@@ -215,6 +256,12 @@ export async function mountDiorama(
 			redrawIfIdle();
 		},
 		getSky: () => stage.sky,
+		setQuality(setting) {
+			qualitySetting = setting;
+			applyQuality();
+			redrawIfIdle();
+		},
+		getQuality: () => ({ setting: qualitySetting, effective: stage.quality }),
 		pause() {
 			userPaused = true;
 			syncLoop();
