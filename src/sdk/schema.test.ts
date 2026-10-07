@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { pointLight, snow } from './atmosphere/index.ts';
 import { model } from './builder/model.ts';
 import { spin, walkPath } from './entities/index.ts';
 import {
@@ -49,9 +50,21 @@ describe('defineDiorama', () => {
 		);
 	});
 
-	test('поля будущих этапов отвергаются (strict)', () => {
-		const input = { ...minimal(), particles: [] } as unknown as DioramaInput;
-		expect(() => defineDiorama(input)).toThrow('particles');
+	test('неизвестные поля отвергаются (strict)', () => {
+		const input = { ...minimal(), weather: [] } as unknown as DioramaInput;
+		expect(() => defineDiorama(input)).toThrow('weather');
+	});
+
+	test('particles и lights принимаются, мусор — понятная ошибка', () => {
+		const d = defineDiorama({
+			...minimal(),
+			particles: [snow()],
+			lights: [pointLight({ at: [1, 1] })],
+		});
+		expect(d.particles).toHaveLength(1);
+		expect(d.lights).toHaveLength(1);
+		const bad = { ...minimal(), particles: [{ smoke: 1 }] } as unknown as DioramaInput;
+		expect(() => defineDiorama(bad)).toThrow('particles: ожидается');
 	});
 
 	test('несуществующая дата отвергается', () => {
@@ -169,10 +182,5 @@ describe('entities в схеме', () => {
 		expect(() => bad([{ model: box, at: 'Bad name' }])).toThrow(DioramaValidationError);
 		expect(() => bad([{ model: box, at: [1, 2, 3, 4] }])).toThrow('ожидается [x, z]');
 		expect(() => bad([{ model: box, at: { x: 1 } }])).toThrow('ожидается [x, z]');
-	});
-
-	test('поля этапа 3 по-прежнему отвергаются', () => {
-		const input = { ...minimal(), particles: [] } as unknown as DioramaInput;
-		expect(() => defineDiorama(input)).toThrow('particles');
 	});
 });

@@ -12,6 +12,8 @@ import {
 	TIME_ERROR,
 	type TimeInput,
 } from './atmosphere/config.ts';
+import { isLightDef, type LightDef } from './atmosphere/lights.ts';
+import { isParticleDef, type ParticleDef } from './atmosphere/particles.ts';
 import { isModel, type Model } from './builder/model.ts';
 import type { WorldBuilder } from './builder/world-builder.ts';
 import { isRig, type Rig } from './entities/rig.ts';
@@ -147,6 +149,19 @@ export const dioramaSchema = z.strictObject({
 				seen.add(e.id);
 			});
 		}),
+	particles: z
+		.array(
+			z.custom<ParticleDef>(
+				isParticleDef,
+				'particles: ожидается smoke(…), fire(…), sparks(…), fireflies(…), snow(…), rain(…), leaves(…), mist(…) или dust(…)',
+			),
+		)
+		.max(32)
+		.default([]),
+	lights: z
+		.array(z.custom<LightDef>(isLightDef, 'lights: ожидается pointLight(…)'))
+		.max(8)
+		.default([]),
 	atmosphere: z
 		.strictObject({
 			time: z

@@ -1,5 +1,6 @@
 export type { Material, MaterialKind, SceneConfig, TimeOfDay, Vec3 } from '../engine/types.ts';
 export { buildHeightmap } from '../engine/voxel/heightmap.ts';
+export * from './atmosphere/index.ts';
 export {
 	type BakeResult,
 	type BakeStats,

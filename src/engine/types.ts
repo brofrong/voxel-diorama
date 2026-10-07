@@ -94,3 +94,56 @@ export interface WorldContext {
 }
 
 export type EntityFactory = (ctx: WorldContext) => EntityInstance[];
+export interface EmitterSpec {
+	id: string;
+	seed: number;
+	/** Частиц на качестве high. */
+	count: number;
+	lifetime: number;
+	/** Центр области появления; для attach — смещение от сущности не включено (см. offset). */
+	origin: Vec3;
+	/** Полуразмеры области появления. */
+	extent: Vec3;
+	velocity: Vec3;
+	jitter: Vec3;
+	gravity: number;
+	wind: { amp: number; freq: number };
+	size: [number, number];
+	color: [string, string];
+	emissive: number;
+	opacity: number;
+	stretch: number;
+	blink: boolean;
+	groundRelative: boolean;
+	groundCull: boolean;
+	nightOnly: boolean;
+	/** Индекс экземпляра сущности (из списка, переданного движком) или null. */
+	attach: number | null;
+	offset: Vec3;
+}
+
+export interface LightSpec {
+	id: string;
+	seed: number;
+	position: Vec3;
+	color: string;
+	intensity: number;
+	distance: number;
+	flicker: boolean;
+	nightOnly: boolean;
+	attach: number | null;
+	offset: Vec3;
+}
+
+export interface AtmosphereContext extends WorldContext {
+	size: Vec3;
+	/** id экземпляров сущностей в порядке, в котором их рисует движок. */
+	entityIds: readonly string[];
+}
+
+export interface AtmosphereSpec {
+	emitters: EmitterSpec[];
+	lights: LightSpec[];
+}
+
+export type AtmosphereFactory = (ctx: AtmosphereContext) => AtmosphereSpec;
