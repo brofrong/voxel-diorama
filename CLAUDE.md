@@ -47,5 +47,5 @@ Bun · SvelteKit 3 + Svelte 5 (runes) · Vite 8 · Three.js (`WebGPURenderer` + 
 
 - Сайт: https://brofrong.github.io/voxel-diorama/ (GitHub Pages, репозиторий `brofrong/voxel-diorama`).
 - Каждый push в `main` → `.github/workflows/deploy.yml`: `check` → `build` (`SITE_ORIGIN=https://brofrong.github.io`, `BASE_PATH=/voxel-diorama`) → проверка `build/` → деплой → smoke живого сайта. Статус: `gh run list --workflow deploy.yml -L 1`, `gh run watch`.
-- Ссылки в разметке — только через `resolve()` (страницы) и `withBase()` (`#lib/paths.ts`, файлы из `static/`); тест `src/lib/paths.test.ts` ловит пути от корня.
+- Ссылки — только через `resolve()` (страницы) и `withBase()` (`#lib/paths.ts`, файлы из `static/`). Тест `src/lib/paths.test.ts` ловит атрибуты от корня, `/thumbs/`·`/baked/` вне `withBase()`/dev-ветки и сырые `src`/`.world`; `scripts/verify-build.ts` проверяет собранный HTML.
 - Версии скриншотов и миров в URL — хеш содержимого (`src/lib/server/version.ts`).
