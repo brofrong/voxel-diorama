@@ -27,6 +27,8 @@ export class EntityLayer {
 		for (const instance of instances) {
 			const root = new Group();
 			root.rotation.order = 'YXZ';
+			// Скрыт, пока не придёт первая успешная поза (чтобы не мигнуть T-pose в начале координат).
+			root.visible = false;
 			const joints: Group[] = [];
 			instance.parts.forEach((spec) => {
 				const joint = new Group();
@@ -67,19 +69,18 @@ export class EntityLayer {
 	update(t: number): void {
 		for (const item of this.live) {
 			if (item.frozen) continue;
-			let pose: ReturnType<EntityInstance['pose']>;
 			try {
-				pose = item.instance.pose(t);
+				const pose = item.instance.pose(t);
+				item.root.position.set(pose.position[0], pose.position[1] + pose.lift, pose.position[2]);
+				item.root.rotation.set(pose.rotation[0], pose.rotation[1], pose.rotation[2]);
+				pose.parts.forEach((r, i) => {
+					item.joints[i]?.rotation.set(r[0], r[1], r[2]);
+				});
+				item.root.visible = true;
 			} catch (error) {
 				item.frozen = true;
 				console.error(`[diorama] сущность ${item.instance.id} остановлена:`, error);
-				continue;
 			}
-			item.root.position.set(pose.position[0], pose.position[1] + pose.lift, pose.position[2]);
-			item.root.rotation.set(pose.rotation[0], pose.rotation[1], pose.rotation[2]);
-			pose.parts.forEach((r, i) => {
-				item.joints[i]?.rotation.set(r[0], r[1], r[2]);
-			});
 		}
 	}
 
