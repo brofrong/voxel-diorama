@@ -17,7 +17,8 @@ Bun · SvelteKit 3 + Svelte 5 (runes) · Vite 8 · Three.js (`WebGPURenderer` + 
 | `bun run diorama:check [slug] [--no-types]` | типы + валидация + запекание + статистика и предупреждения |
 | `bun run check` | Biome + svelte-check + все тесты |
 | `bun run format` | автоформатирование Biome |
-| `bun run build` | запекание всех диорам в `static/baked` + статическая сборка в `build/` |
+| `bun run build` | запекание всех диорам в `static/baked` + статическая сборка в `build/`; требует `SITE_ORIGIN` (и `BASE_PATH` для подпути) |
+| `bun run build:local` | сборка для локального `bun run preview` (`SITE_ORIGIN=http://localhost:4173`) |
 
 ## Структура
 
@@ -41,3 +42,10 @@ Bun · SvelteKit 3 + Svelte 5 (runes) · Vite 8 · Three.js (`WebGPURenderer` + 
 - Тесты — `bun test`, рядом с кодом (`*.test.ts`). Перед коммитом — `bun run format && bun run check`.
 - Сущности (`entities`): модели и rig'и с поведениями (`spin`, `bob`, `sway`, `orbit`, `keyframes`, `walkPath`, `wander`, `flock`, `custom`). Поза — функция от `t` и seed (детерминизм). Лицо сущности — +z, углы для авторов — в градусах.
 - Якоря: `w.place(model, at, { name })` даёт `<name>.<якорь>`, `w.anchor(name, pos)` — свою точку; сущности ссылаются строкой (`at: 'mill.hub'`). Якоря запекаются в `.vxb` v2.
+
+## Публикация
+
+- Сайт: https://brofrong.github.io/voxel-diorama/ (GitHub Pages, репозиторий `brofrong/voxel-diorama`).
+- Каждый push в `main` → `.github/workflows/deploy.yml`: `check` → `build` (`SITE_ORIGIN=https://brofrong.github.io`, `BASE_PATH=/voxel-diorama`) → проверка `build/` → деплой → smoke живого сайта. Статус: `gh run list --workflow deploy.yml -L 1`, `gh run watch`.
+- Ссылки в разметке — только через `resolve()` (страницы) и `withBase()` (`#lib/paths.ts`, файлы из `static/`); тест `src/lib/paths.test.ts` ловит пути от корня.
+- Версии скриншотов и миров в URL — хеш содержимого (`src/lib/server/version.ts`).

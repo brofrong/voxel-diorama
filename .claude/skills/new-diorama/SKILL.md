@@ -127,4 +127,4 @@ bun run diorama:check <slug>
 bun run format && bun run check
 ```
 
-Покажи пользователю скриншот (`![](абсолютный/путь/к/static/thumbs/<slug>.webp)`) и 2–3 строки о сцене. **Коммит — только по команде пользователя.**
+Покажи пользователю скриншот (`![](абсолютный/путь/к/static/thumbs/<slug>.webp)`) и 2–3 строки о сцене. **Коммит и push — только по команде пользователя.** После push в `main` сайт обновится сам: проверь `gh run watch` (или `gh run list --workflow deploy.yml -L 1`) и дай ссылку `https://brofrong.github.io/voxel-diorama/d/<slug>`.
