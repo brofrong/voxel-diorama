@@ -8,6 +8,8 @@ export interface CardData {
 	tags: string[];
 	/** URL скриншота или null, если его ещё нет. */
 	thumb: string | null;
+	/** Путь запечённого мира (без base), с версией по содержимому после bake-all. */
+	world: string;
 }
 
 export interface ViewerPayload {

@@ -1,6 +1,6 @@
 import { type Diorama, slugFromDioramaPath, toSceneConfig } from '#sdk';
 import type { CardData, ViewerPayload } from '../types.ts';
-import { thumbUrl } from './thumbs.ts';
+import { thumbUrl, worldPath } from './thumbs.ts';
 
 const modules = import.meta.glob<{ default: Diorama }>('../../dioramas/*/index.ts', {
 	eager: true,
@@ -26,6 +26,7 @@ function toCard(slug: string, d: Diorama): CardData {
 		description: d.meta.description,
 		tags: d.meta.tags,
 		thumb: thumbUrl(slug),
+		world: worldPath(slug),
 	};
 }
 
