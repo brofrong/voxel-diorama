@@ -35,3 +35,13 @@ test('билинейно между центрами колонок', () => {
 	expect(groundAt(1.5, 0.5)).toBe(2);
 	expect(groundAt(1, 0.5)).toBeCloseTo(1, 6);
 });
+
+test('колонки доступны для текстуры высот', () => {
+	const world = new VoxelWorld([3, 8, 2]);
+	world.set(2, 4, 1, 1);
+	const hm = buildHeightmap(world, materials);
+	expect(hm.width).toBe(3);
+	expect(hm.depth).toBe(2);
+	expect(hm.columns[2 + 1 * 3]).toBe(5);
+	expect(hm.columns[0]).toBe(0);
+});

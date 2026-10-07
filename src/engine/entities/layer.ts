@@ -1,6 +1,6 @@
 import { type BufferGeometry, Group, Mesh, type MeshStandardNodeMaterial } from 'three/webgpu';
 import type { VoxelLayer } from '../render/materials.ts';
-import type { EntityInstance, VoxelModelData } from '../types.ts';
+import type { EntityInstance, Vec3, VoxelModelData } from '../types.ts';
 import { toGeometry } from '../world-mesh.ts';
 import { meshModel } from './model-mesh.ts';
 
@@ -9,6 +9,8 @@ interface LiveInstance {
 	root: Group;
 	joints: Group[];
 	frozen: boolean;
+	/** Мировая точка привязки на последней успешной позе (с учётом lift). */
+	position: Vec3 | null;
 }
 
 /** Сущности сцены: граф объектов и раскладка поз каждый кадр. */
@@ -46,7 +48,7 @@ export class EntityLayer {
 				joints.push(joint);
 			});
 			this.group.add(root);
-			this.live.push({ instance, root, joints, frozen: false });
+			this.live.push({ instance, root, joints, frozen: false, position: null });
 		}
 	}
 
@@ -77,11 +79,21 @@ export class EntityLayer {
 					item.joints[i]?.rotation.set(r[0], r[1], r[2]);
 				});
 				item.root.visible = true;
+				item.position = [pose.position[0], pose.position[1] + pose.lift, pose.position[2]];
 			} catch (error) {
 				item.frozen = true;
 				console.error(`[diorama] сущность ${item.instance.id} остановлена:`, error);
 			}
 		}
+	}
+
+	get ids(): string[] {
+		return this.live.map((item) => item.instance.id);
+	}
+
+	/** Мировая точка привязки экземпляра на последней успешной позе. */
+	positionOf(index: number): Vec3 | null {
+		return this.live[index]?.position ?? null;
 	}
 
 	dispose(): void {

@@ -2,6 +2,7 @@ import { Group } from 'three/webgpu';
 import { DayClock, TIME_SYNONYMS } from './atmosphere/daycycle.ts';
 import { EntityLayer } from './entities/layer.ts';
 import { fetchBytes } from './load.ts';
+import { type GroundField, ParticleLayer } from './particles/layer.ts';
 import { createWorldMaterials } from './render/materials.ts';
 import {
 	type DeviceCaps,
@@ -13,6 +14,7 @@ import { backendName, createRenderer } from './render/renderer.ts';
 import { Stage } from './render/stage.ts';
 import { createAtmosphereUniforms } from './render/uniforms.ts';
 import type {
+	AtmosphereFactory,
 	EntityFactory,
 	QualityLevel,
 	QualitySetting,
@@ -30,10 +32,14 @@ import { meshWorld } from './world-mesh.ts';
 export { LoadError } from './load.ts';
 export { NoGraphicsError } from './render/renderer.ts';
 export type {
+	AtmosphereFactory,
+	AtmosphereSpec,
 	BaseStyle,
 	CameraConfig,
+	EmitterSpec,
 	EntityFactory,
 	EntityInstance,
+	LightSpec,
 	QualityLevel,
 	QualitySetting,
 	SceneConfig,
@@ -57,6 +63,10 @@ export interface MountOptions {
 	fixedTime?: number;
 	/** Качество картинки; по умолчанию 'auto'. В режиме скриншота всегда high. */
 	quality?: QualitySetting;
+	/** Фабрика частиц и света; вызывается после сущностей (известны их id). */
+	atmosphere?: AtmosphereFactory;
+	/** Показывать частицы (по умолчанию да). */
+	particles?: boolean;
 }
 
 export interface CaptureOptions {
@@ -81,7 +91,8 @@ export interface DioramaController {
 	pause(): void;
 	resume(): void;
 	/** Перезагрузить мир (и сущности) без перезагрузки страницы; камера сохраняется. */
-	reloadWorld(url: string, entities?: EntityFactory): Promise<void>;
+	reloadWorld(url: string, entities?: EntityFactory, atmosphere?: AtmosphereFactory): Promise<void>;
+	setParticles(on: boolean): void;
 	/** Пересоздать сущности на текущем мире. */
 	setEntities(factory: EntityFactory | undefined): void;
 	/** Кадр в заданном разрешении, webp. */
@@ -109,8 +120,13 @@ export async function mountDiorama(
 	};
 	let qualitySetting: QualitySetting = options.quality ?? 'auto';
 	let frameSamples: number[] | null = null;
+	let particles: ParticleLayer | null = null;
+	const setLevel = (level: QualityLevel): void => {
+		stage.setQuality(level);
+		particles?.setDensity(stage.preset.particles);
+	};
 	const applyQuality = (): void => {
-		stage.setQuality(resolveQuality(qualitySetting, caps, capture));
+		setLevel(resolveQuality(qualitySetting, caps, capture));
 		// Наблюдаем первые 3 с только в «Авто» и не в режиме скриншота.
 		frameSamples = qualitySetting === 'auto' && !capture ? [] : null;
 	};
@@ -122,6 +138,10 @@ export async function mountDiorama(
 	let entityFactory = options.entities;
 	let worldContext: WorldContext | null = null;
 	let layer: EntityLayer | null = null;
+	let atmosphereFactory = options.atmosphere;
+	let field: GroundField | null = null;
+	let particlesEnabled = options.particles ?? true;
+	const positionOf = (index: number) => layer?.positionOf(index) ?? null;
 	let animTime = options.fixedTime ?? 0;
 	let lastFrame = performance.now();
 
@@ -129,6 +149,7 @@ export async function mountDiorama(
 		uniforms.time.value = animTime;
 		stage.setHour(currentHour());
 		layer?.update(animTime);
+		particles?.update(positionOf, uniforms.night.value);
 		stage.render();
 	};
 
@@ -158,7 +179,7 @@ export async function mountDiorama(
 			const verdict = shouldDowngrade(frameSamples);
 			if (verdict !== null) {
 				frameSamples = null;
-				if (verdict) stage.setQuality(lowerQuality(stage.quality));
+				if (verdict) setLevel(lowerQuality(stage.quality));
 			}
 		}
 		lastFrame = now;
@@ -171,6 +192,25 @@ export async function mountDiorama(
 	};
 	document.addEventListener('visibilitychange', syncLoop);
 	syncLoop();
+
+	const rebuildAtmosphere = (): void => {
+		particles?.dispose();
+		particles = null;
+		if (disposed || !atmosphereFactory || !worldContext || !field) return;
+		try {
+			const spec = atmosphereFactory({
+				...worldContext,
+				size: config.size,
+				entityIds: layer?.ids ?? [],
+			});
+			particles = new ParticleLayer(spec.emitters, field, uniforms);
+			particles.setDensity(stage.preset.particles);
+			particles.setEnabled(particlesEnabled);
+			stage.scene.add(particles.group);
+		} catch (error) {
+			console.error('[diorama] не удалось создать атмосферу:', error);
+		}
+	};
 
 	const rebuildEntities = (): void => {
 		if (disposed) return;
@@ -188,6 +228,7 @@ export async function mountDiorama(
 				console.error('[diorama] не удалось создать сущности:', error);
 			}
 		}
+		rebuildAtmosphere();
 		redrawIfIdle();
 	};
 
@@ -195,7 +236,8 @@ export async function mountDiorama(
 		const report = options.onProgress;
 		const bytes = await fetchBytes(url, (p) => report?.(p * 0.5));
 		const { world, materials: palette, anchors } = await decodeVxb(bytes);
-		const context: WorldContext = { anchors, groundAt: buildHeightmap(world, palette).groundAt };
+		const heightmap = buildHeightmap(world, palette);
+		const context: WorldContext = { anchors, groundAt: heightmap.groundAt };
 		pool?.dispose();
 		const meshPool = new MesherPool(buildPaletteLUT(palette));
 		pool = meshPool;
@@ -209,6 +251,7 @@ export async function mountDiorama(
 		}
 		if (!progressive) stage.replaceWorld(target);
 		worldContext = context;
+		field = heightmap;
 		rebuildEntities();
 	};
 
@@ -221,6 +264,8 @@ export async function mountDiorama(
 		pool?.dispose();
 		layer?.dispose();
 		layer = null;
+		particles?.dispose();
+		particles = null;
 		stage.dispose();
 		for (const material of Object.values(materials)) material.dispose();
 		renderer.dispose();
@@ -262,6 +307,11 @@ export async function mountDiorama(
 			redrawIfIdle();
 		},
 		getQuality: () => ({ setting: qualitySetting, effective: stage.quality }),
+		setParticles(on) {
+			particlesEnabled = on;
+			particles?.setEnabled(on);
+			redrawIfIdle();
+		},
 		pause() {
 			userPaused = true;
 			syncLoop();
@@ -270,8 +320,9 @@ export async function mountDiorama(
 			userPaused = false;
 			syncLoop();
 		},
-		reloadWorld: (url, entities) => {
+		reloadWorld: (url, entities, atmosphere) => {
 			if (entities !== undefined) entityFactory = entities;
+			if (atmosphere !== undefined) atmosphereFactory = atmosphere;
 			return loadWorld(url, false);
 		},
 		setEntities(factory) {

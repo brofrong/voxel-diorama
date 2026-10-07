@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { DioramaController, EntityFactory, SceneConfig } from '#engine';
+	import type {
+		AtmosphereFactory,
+		DioramaController,
+		EntityFactory,
+		SceneConfig,
+	} from '#engine';
 	import { loadDioramaModule } from '#lib/client/diorama-loader.ts';
 	import type { CardData } from '#lib/types.ts';
 	import type { Diorama } from '#sdk';
@@ -35,6 +40,11 @@
 		controller.setSky(scene.sky);
 	});
 
+	async function atmosphereFor(diorama: Diorama): Promise<AtmosphereFactory> {
+		const { createAtmosphereRuntime } = await import('#sdk');
+		return (ctx) => createAtmosphereRuntime(diorama, ctx);
+	}
+
 	async function entitiesFor(diorama: Diorama): Promise<EntityFactory> {
 		const { createEntityRuntime } = await import('#sdk');
 		return (ctx) => createEntityRuntime(diorama.entities, { seed: diorama.seed, ...ctx });
@@ -60,7 +70,11 @@
 		if (!controller) return;
 		try {
 			const diorama = await loadDioramaModule(card.slug, true);
-			await controller.reloadWorld(worldUrl(true), await entitiesFor(diorama));
+			await controller.reloadWorld(
+				worldUrl(true),
+				await entitiesFor(diorama),
+				await atmosphereFor(diorama),
+			);
 			await invalidateAll();
 			// Камера/туман/размер/подставка не применяются вживую — проще перезагрузить страницу.
 			if (mountedSceneFingerprint && sceneFingerprint(scene) !== mountedSceneFingerprint) {
@@ -93,6 +107,7 @@
 						progress = p;
 					},
 					entities: await entitiesFor(diorama),
+					atmosphere: await atmosphereFor(diorama),
 					fixedTime: capture ? scene.captureTime : undefined,
 				});
 				if (disposed) {

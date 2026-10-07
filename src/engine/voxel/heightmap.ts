@@ -5,6 +5,10 @@ import type { VoxelWorld } from './world.ts';
 export interface Heightmap {
 	/** y поверхности в точке (билинейно между центрами колонок); вне мира — 0. */
 	groundAt(x: number, z: number): number;
+	/** Высота земли по колонкам (x + z·width). */
+	columns: Int16Array;
+	width: number;
+	depth: number;
 }
 
 /** «Земля» колонки — y над верхним твёрдым (kind 'solid') вокселем; без твёрдых — 0. */
@@ -36,6 +40,9 @@ export function buildHeightmap(world: VoxelWorld, materials: readonly Material[]
 	const column = (x: number, z: number): number =>
 		tops[Math.min(sx - 1, Math.max(0, x)) + Math.min(sz - 1, Math.max(0, z)) * sx];
 	return {
+		columns: tops,
+		width: sx,
+		depth: sz,
 		groundAt(x: number, z: number): number {
 			if (x < 0 || z < 0 || x >= sx || z >= sz) return 0;
 			const fx = x - 0.5;
