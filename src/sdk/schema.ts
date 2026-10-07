@@ -5,7 +5,7 @@ import { ANCHOR_REF_RE } from './anchors.ts';
 import { isModel, type Model } from './builder/model.ts';
 import type { WorldBuilder } from './builder/world-builder.ts';
 import { isRig, type Rig } from './entities/rig.ts';
-import { type Behaviour, isBehaviour } from './entities/types.ts';
+import { type Behaviour, isBehaviour, type Point } from './entities/types.ts';
 import { AIR, HEX_COLOR, normalizeMaterial } from './materials.ts';
 
 const hexColor = z.string().regex(HEX_COLOR, 'ожидается цвет в формате #rrggbb');
@@ -24,11 +24,17 @@ const materialInput = z.union([
 /** Имя материала: латиница, с маленькой буквы. */
 const MATERIAL_NAME_RE = /^[a-z][a-zA-Z0-9_-]*$/;
 
-const point = z.union([
-	z.tuple([z.number(), z.number()]),
-	z.tuple([z.number(), z.number(), z.number()]),
-	z.string().regex(ANCHOR_REF_RE, 'якорь: `name` или `name.anchor` латиницей с маленькой буквы'),
-]);
+const isFiniteNumberTuple = (v: unknown): v is readonly number[] =>
+	Array.isArray(v) &&
+	(v.length === 2 || v.length === 3) &&
+	v.every((n) => typeof n === 'number' && Number.isFinite(n));
+
+// R3: zod 4 сообщает об ошибке непройденного члена z.union как общее "Invalid input", поэтому
+// at — не union([x,z], [x,y,z], якорь), а один z.custom со своим сообщением.
+const point = z.custom<Point>(
+	(v) => (typeof v === 'string' ? ANCHOR_REF_RE.test(v) : isFiniteNumberTuple(v)),
+	'at: ожидается [x, z], [x, y, z] или имя якоря (`well`, `mill.hub`)',
+);
 
 // R1: zod 4 сообщает об ошибке непройденного члена z.union как общее "Invalid input" и теряет
 // сообщение refine, поэтому `animate` — не union([behaviour, array(behaviour)]), а один

@@ -145,6 +145,8 @@ describe('entities в схеме', () => {
 			]),
 		).toThrow('повторяется id "a"');
 		expect(() => bad([{ model: box, at: 'Bad name' }])).toThrow(DioramaValidationError);
+		expect(() => bad([{ model: box, at: [1, 2, 3, 4] }])).toThrow('ожидается [x, z]');
+		expect(() => bad([{ model: box, at: { x: 1 } }])).toThrow('ожидается [x, z]');
 	});
 
 	test('поля этапа 3 по-прежнему отвергаются', () => {
