@@ -22,3 +22,16 @@ test('house: якорь chimney над верхом трубы', () => {
 	const [x, y, z] = h.anchors.chimney;
 	expect(h.data[modelIndex(h.size, Math.floor(x), Math.floor(y) - 1, Math.floor(z))]).not.toBe(0);
 });
+
+test('lantern: светящиеся воксели видны сбоку (не замурованы в столб)', () => {
+	const m = lantern();
+	const glow = m.materials.findIndex(({ material }) => material.emissive > 0) + 1;
+	for (const [x, z] of [
+		[1, 0],
+		[0, 1],
+		[2, 1],
+		[1, 2],
+	] as const) {
+		expect(m.data[modelIndex(m.size, x, 4, z)]).toBe(glow);
+	}
+});

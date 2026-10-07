@@ -36,7 +36,7 @@ describe('createAtmosphereRuntime: частицы', () => {
 		expect(e.origin).toEqual([48, 40, 40]);
 		expect(e.extent).toEqual([48, 0, 40]);
 		expect(e.lifetime).toBeCloseTo(40 / 0.9, 6);
-		expect(e.count).toBe(Math.round(96 * 80 * 0.012));
+		expect(e.count).toBe(Math.round(96 * 80 * 0.05));
 		expect(e.groundCull).toBe(true);
 	});
 

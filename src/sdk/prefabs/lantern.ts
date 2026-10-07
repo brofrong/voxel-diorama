@@ -13,8 +13,16 @@ export function lantern(options: { post?: string; glow?: string } = {}): Model {
 		},
 		(m) => {
 			m.box([1, 0, 1], [1, 3, 1], 'post');
-			m.box([0, 4, 0], [2, 4, 2], 'post');
-			m.set([1, 4, 1], 'glow');
+			// Фонарь: светящийся слой 3×1×3 со стойками по углам — свет виден со всех сторон.
+			m.box([0, 4, 0], [2, 4, 2], 'glow');
+			for (const [x, z] of [
+				[0, 0],
+				[2, 0],
+				[0, 2],
+				[2, 2],
+			] as const) {
+				m.set([x, 4, z], 'post');
+			}
 			m.box([0, 5, 0], [2, 5, 2], 'post');
 		},
 	);

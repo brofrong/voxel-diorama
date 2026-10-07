@@ -1,4 +1,16 @@
-import { bob, defineDiorama, flock, prefabs, spin, sway, walkPath, wander } from '#sdk';
+import {
+	bob,
+	defineDiorama,
+	fireflies,
+	flock,
+	mist,
+	prefabs,
+	smoke,
+	spin,
+	sway,
+	walkPath,
+	wander,
+} from '#sdk';
 
 /** Середина русла по z для колонки x. */
 const riverZ = (x: number): number => 38 + 5 * Math.sin(x / 12);
@@ -7,7 +19,8 @@ export default defineDiorama({
 	meta: {
 		title: 'Мельница у реки',
 		createdAt: '2026-10-07',
-		description: 'Мельница, житель на тропинке через мост, кот у дома и птицы над рекой',
+		description:
+			'Мельница, житель на тропинке через мост, кот у дома, птицы над рекой; дым, туман и светлячки',
 		tags: ['мельница', 'река', 'жители'],
 	},
 	seed: 11,
@@ -93,6 +106,11 @@ export default defineDiorama({
 			animate: [bob({ amp: 0.12, period: 3 }), sway({ angle: 3, period: 4 })],
 		},
 	],
-	atmosphere: { time: { fixed: 'sunset' } },
+	particles: [
+		smoke({ at: 'house.chimney', rate: 5 }),
+		mist({ area: [0, 30, 95, 46], height: 1.5 }),
+		fireflies({ area: [40, 50, 75, 75], count: 40, onlyAtNight: true }),
+	],
+	atmosphere: { time: { start: 18.5, speed: 1 }, sky: 'realistic' },
 	camera: { captureTime: 3 },
 });

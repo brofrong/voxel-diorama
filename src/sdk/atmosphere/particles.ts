@@ -146,7 +146,7 @@ export const PARTICLE_TEMPLATES: Readonly<Record<ParticlePreset, ParticleTemplat
 		size: [0.12, 0.12],
 		color: ['#ffffff', '#ffffff'],
 		groundCull: true,
-		density: 0.012,
+		density: 0.05,
 		intensity: 0.6,
 	},
 	rain: {
@@ -161,7 +161,7 @@ export const PARTICLE_TEMPLATES: Readonly<Record<ParticlePreset, ParticleTemplat
 		color: ['#9fc4ff', '#9fc4ff'],
 		stretch: 6,
 		groundCull: true,
-		density: 0.02,
+		density: 0.06,
 		intensity: 1,
 	},
 	leaves: {
@@ -175,7 +175,7 @@ export const PARTICLE_TEMPLATES: Readonly<Record<ParticlePreset, ParticleTemplat
 		size: [0.18, 0.18],
 		color: ['#d68910', '#a04000'],
 		groundCull: true,
-		density: 0.004,
+		density: 0.01,
 		intensity: 1,
 	},
 	mist: {
