@@ -1,6 +1,7 @@
 import { Group } from 'three/webgpu';
 import { DayClock, TIME_SYNONYMS } from './atmosphere/daycycle.ts';
 import { EntityLayer } from './entities/layer.ts';
+import { LightLayer } from './lights.ts';
 import { fetchBytes } from './load.ts';
 import { type GroundField, ParticleLayer } from './particles/layer.ts';
 import { createWorldMaterials } from './render/materials.ts';
@@ -121,6 +122,7 @@ export async function mountDiorama(
 	let qualitySetting: QualitySetting = options.quality ?? 'auto';
 	let frameSamples: number[] | null = null;
 	let particles: ParticleLayer | null = null;
+	let lights: LightLayer | null = null;
 	const setLevel = (level: QualityLevel): void => {
 		stage.setQuality(level);
 		particles?.setDensity(stage.preset.particles);
@@ -150,6 +152,7 @@ export async function mountDiorama(
 		stage.setHour(currentHour());
 		layer?.update(animTime);
 		particles?.update(positionOf, uniforms.night.value);
+		lights?.update(animTime, uniforms.night.value, positionOf);
 		stage.render();
 	};
 
@@ -196,6 +199,8 @@ export async function mountDiorama(
 	const rebuildAtmosphere = (): void => {
 		particles?.dispose();
 		particles = null;
+		lights?.dispose();
+		lights = null;
 		if (disposed || !atmosphereFactory || !worldContext || !field) return;
 		try {
 			const spec = atmosphereFactory({
@@ -207,6 +212,8 @@ export async function mountDiorama(
 			particles.setDensity(stage.preset.particles);
 			particles.setEnabled(particlesEnabled);
 			stage.scene.add(particles.group);
+			lights = new LightLayer(spec.lights);
+			stage.scene.add(lights.group);
 		} catch (error) {
 			console.error('[diorama] не удалось создать атмосферу:', error);
 		}
@@ -266,6 +273,8 @@ export async function mountDiorama(
 		layer = null;
 		particles?.dispose();
 		particles = null;
+		lights?.dispose();
+		lights = null;
 		stage.dispose();
 		for (const material of Object.values(materials)) material.dispose();
 		renderer.dispose();
