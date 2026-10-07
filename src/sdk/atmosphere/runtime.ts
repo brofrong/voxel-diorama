@@ -109,7 +109,8 @@ function emitter(
 	let y = 0;
 	let ey = 0;
 	if (t.fall) {
-		lifetime = top / t.fall;
+		// Жизнь — по самым медленным частицам: заканчивает падение земля, а не кривая жизни.
+		lifetime = top / Math.max(0.1, t.fall - t.jitter[1]);
 		y = top;
 	} else if (t.band) {
 		const hi = o.height ?? t.band[1];

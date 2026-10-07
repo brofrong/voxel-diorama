@@ -30,7 +30,8 @@ export function createPipeline(
 	const scenePass = pass(scene, camera, { samples });
 	const sceneColor = scenePass.getTextureNode('output');
 	let color: Node<'vec4'> = sceneColor;
-	const extra: Array<{ dispose(): void }> = [];
+	// Проход сцены владеет полноразмерным рендер-таргетом — освобождаем вместе с конвейером.
+	const extra: Array<{ dispose(): void }> = [scenePass];
 
 	if (preset.gtao) {
 		// Нормали восстанавливаются из глубины: GTAONode принимает normalNode = null,

@@ -11,10 +11,9 @@
 	} from '#engine';
 	import { loadDioramaModule } from '#lib/client/diorama-loader.ts';
 	import {
-		parseSettings,
+		loadSettings,
 		resolveSettings,
-		SETTINGS_KEY,
-		serializeSettings,
+		saveSettings,
 		type ViewerSettings,
 	} from '#lib/client/settings.ts';
 	import SettingsPanel from '#lib/components/SettingsPanel.svelte';
@@ -119,9 +118,10 @@
 		hour = scene.time.start;
 		speed = reducedMotion ? 0 : scene.time.speed;
 		skyKind = scene.sky.kind;
-		settings = resolveSettings(parseSettings(localStorage.getItem(SETTINGS_KEY)), {
+		settings = resolveSettings(capture ? {} : loadSettings(() => localStorage), {
 			autoRotate: scene.camera.autoRotate,
 			reducedMotion,
+			capture,
 		});
 		const config: SceneConfig = capture
 			? { ...scene, camera: { ...scene.camera, autoRotate: false } }
@@ -196,7 +196,7 @@
 
 	function persist(next: Partial<ViewerSettings>): void {
 		settings = { ...settings, ...next };
-		localStorage.setItem(SETTINGS_KEY, serializeSettings(settings));
+		saveSettings(() => localStorage, settings);
 	}
 
 	const handlers = {

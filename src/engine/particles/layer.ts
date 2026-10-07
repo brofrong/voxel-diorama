@@ -35,7 +35,7 @@ import { instanceCount } from './math.ts';
 const TAU = Math.PI * 2;
 
 export interface GroundField {
-	columns: Int16Array;
+	surface: Int16Array;
 	width: number;
 	depth: number;
 }
@@ -60,7 +60,8 @@ export class ParticleLayer {
 		field: GroundField,
 		private readonly u: AtmosphereUniforms,
 	) {
-		const data = Float32Array.from(field.columns);
+		// Частицы садятся на воду и лёд, а не проваливаются до дна.
+		const data = Float32Array.from(field.surface);
 		this.ground = new DataTexture(data, field.width, field.depth, RedFormat, FloatType);
 		this.ground.needsUpdate = true;
 		for (const spec of specs) this.live.push(this.createEmitter(spec, field));
@@ -177,7 +178,10 @@ export class ParticleLayer {
 
 	dispose(): void {
 		this.group.removeFromParent();
-		for (const item of this.live) (item.mesh.material as MeshStandardNodeMaterial).dispose();
+		for (const item of this.live) {
+			(item.mesh.material as MeshStandardNodeMaterial).dispose();
+			item.mesh.dispose();
+		}
 		this.geometry.dispose();
 		this.ground.dispose();
 	}

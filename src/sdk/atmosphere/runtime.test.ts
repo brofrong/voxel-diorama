@@ -35,7 +35,8 @@ describe('createAtmosphereRuntime: частицы', () => {
 		const [e] = run([snow({ intensity: 1 })]).emitters;
 		expect(e.origin).toEqual([48, 40, 40]);
 		expect(e.extent).toEqual([48, 0, 40]);
-		expect(e.lifetime).toBeCloseTo(40 / 0.9, 6);
+		// Самые медленные хлопья (fall − jitter.y) должны долететь до земли до конца жизни.
+		expect(e.lifetime).toBeCloseTo(40 / (0.9 - 0.2), 6);
 		expect(e.count).toBe(Math.round(96 * 80 * 0.05));
 		expect(e.groundCull).toBe(true);
 	});

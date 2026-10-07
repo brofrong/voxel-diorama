@@ -29,14 +29,37 @@ export function parseSettings(raw: string | null): Partial<ViewerSettings> {
 	return out;
 }
 
+/** Чтение настроек; заблокированное хранилище (SecurityError и т. п.) — пустые настройки. */
+export function loadSettings(storage: () => Pick<Storage, 'getItem'>): Partial<ViewerSettings> {
+	try {
+		return parseSettings(storage().getItem(SETTINGS_KEY));
+	} catch {
+		return {};
+	}
+}
+
+/** Запись настроек; ошибки хранилища (нет доступа, переполнение) игнорируются. */
+export function saveSettings(
+	storage: () => Pick<Storage, 'setItem'>,
+	s: Partial<ViewerSettings>,
+): void {
+	try {
+		storage().setItem(SETTINGS_KEY, serializeSettings(s));
+	} catch {
+		// Настройки просто не сохранятся.
+	}
+}
+
 export function serializeSettings(s: Partial<ViewerSettings>): string {
 	return JSON.stringify({ quality: s.quality, particles: s.particles, autoRotate: s.autoRotate });
 }
 
 export function resolveSettings(
 	stored: Partial<ViewerSettings>,
-	defaults: { autoRotate: boolean; reducedMotion: boolean },
+	defaults: { autoRotate: boolean; reducedMotion: boolean; capture?: boolean },
 ): ViewerSettings {
+	// Скриншот карточки не зависит от настроек зрителя (детерминизм кадра).
+	if (defaults.capture) return { quality: 'auto', particles: true, autoRotate: false };
 	return {
 		quality: stored.quality ?? 'auto',
 		particles: stored.particles ?? true,

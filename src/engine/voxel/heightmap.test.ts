@@ -45,3 +45,16 @@ test('колонки доступны для текстуры высот', () =>
 	expect(hm.columns[2 + 1 * 3]).toBe(5);
 	expect(hm.columns[0]).toBe(0);
 });
+
+test('поверхность для частиц учитывает воду и стекло, земля для ходоков — нет', () => {
+	const glassy: Material[] = [...materials, { color: '#bfe3f5', emissive: 0, kind: 'glass' }];
+	const world = new VoxelWorld([3, 8, 1]);
+	world.set(0, 2, 0, 1); // твёрдое
+	world.set(1, 2, 0, 1);
+	for (let y = 3; y <= 5; y++) world.set(1, y, 0, 2); // вода над дном
+	world.set(2, 1, 0, 1);
+	world.set(2, 2, 0, 3); // лёд
+	const hm = buildHeightmap(world, glassy);
+	expect(Array.from(hm.columns)).toEqual([3, 3, 2]);
+	expect(Array.from(hm.surface)).toEqual([3, 6, 3]);
+});

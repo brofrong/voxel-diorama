@@ -7,6 +7,8 @@ export interface Heightmap {
 	groundAt(x: number, z: number): number;
 	/** Высота земли по колонкам (x + z·width). */
 	columns: Int16Array;
+	/** Поверхность для частиц: над верхним непустым вокселем (вода и стекло — тоже). */
+	surface: Int16Array;
 	width: number;
 	depth: number;
 }
@@ -15,6 +17,7 @@ export interface Heightmap {
 export function buildHeightmap(world: VoxelWorld, materials: readonly Material[]): Heightmap {
 	const [sx, , sz] = world.size;
 	const tops = new Int16Array(sx * sz);
+	const surface = new Int16Array(sx * sz);
 	const solid = new Uint8Array(256);
 	materials.forEach((m, i) => {
 		solid[i + 1] = m.kind === 'solid' ? 1 : 0;
@@ -26,10 +29,17 @@ export function buildHeightmap(world: VoxelWorld, materials: readonly Material[]
 				const x = cx * CHUNK + lx;
 				const z = cz * CHUNK + lz;
 				if (x >= sx || z >= sz) continue;
+				const i = x + z * sx;
+				let seenAny = false;
 				for (let ly = CHUNK - 1; ly >= 0; ly--) {
-					if (solid[data[chunkIndex(lx, ly, lz)]]) {
-						const top = cy * CHUNK + ly + 1;
-						const i = x + z * sx;
+					const v = data[chunkIndex(lx, ly, lz)];
+					if (v === 0) continue;
+					const top = cy * CHUNK + ly + 1;
+					if (!seenAny) {
+						seenAny = true;
+						if (top > surface[i]) surface[i] = top;
+					}
+					if (solid[v]) {
 						if (top > tops[i]) tops[i] = top;
 						break;
 					}
@@ -41,6 +51,7 @@ export function buildHeightmap(world: VoxelWorld, materials: readonly Material[]
 		tops[Math.min(sx - 1, Math.max(0, x)) + Math.min(sz - 1, Math.max(0, z)) * sx];
 	return {
 		columns: tops,
+		surface,
 		width: sx,
 		depth: sz,
 		groundAt(x: number, z: number): number {
