@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { formatDate } from '#lib/format.ts';
+	import { withBase } from '#lib/paths.ts';
 	import type { CardData } from '#lib/types.ts';
+	import { resolve } from '$app/paths';
 
 	let { card }: { card: CardData } = $props();
 </script>
 
-<a class="card" href="/d/{card.slug}">
+<a class="card" href={resolve('/d/[slug]', { slug: card.slug })}>
 	<div class="thumb">
 		{#if card.thumb}
-			<img src={card.thumb} alt={card.title} loading="lazy" width="1200" height="800" />
+			<img src={withBase(card.thumb)} alt={card.title} loading="lazy" width="1200" height="800" />
 		{:else}
 			<div class="placeholder" aria-hidden="true"></div>
 		{/if}

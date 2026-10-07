@@ -15,8 +15,12 @@ export default defineConfig({
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true,
 			},
 			adapter: adapter({ strict: true }),
-			// Абсолютные URL (og:image) при prerender. На деплое задаётся SITE_ORIGIN.
-			paths: { origin: process.env.SITE_ORIGIN ?? 'http://localhost:5173' },
+			// На Pages сайт живёт на подпути (BASE_PATH=/voxel-diorama); в dev — корень.
+			// origin — для абсолютных og:image при prerender.
+			paths: {
+				base: (process.env.BASE_PATH ?? '') as '' | `/${string}`,
+				origin: process.env.SITE_ORIGIN ?? 'http://localhost:5173',
+			},
 		}),
 	],
 });

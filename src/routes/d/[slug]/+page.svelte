@@ -1,10 +1,14 @@
 <script lang="ts">
 	import Viewer from '#lib/components/Viewer.svelte';
+	import { withBase } from '#lib/paths.ts';
 	import { page } from '$app/state';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
-	const ogImage = $derived(data.card.thumb ? new URL(data.card.thumb, page.url.origin).href : null);
+	// База — page.url, а не origin: при prerender base относительный.
+	const ogImage = $derived(
+		data.card.thumb ? new URL(withBase(data.card.thumb), page.url.href).href : null,
+	);
 </script>
 
 <svelte:head>

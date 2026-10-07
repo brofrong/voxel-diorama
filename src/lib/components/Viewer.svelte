@@ -17,10 +17,12 @@
 		type ViewerSettings,
 	} from '#lib/client/settings.ts';
 	import SettingsPanel from '#lib/components/SettingsPanel.svelte';
+	import { withBase } from '#lib/paths.ts';
 	import type { CardData } from '#lib/types.ts';
 	import type { Diorama } from '#sdk';
 	import { dev } from '$app/env';
 	import { invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	let { card, scene }: { card: CardData; scene: SceneConfig } = $props();
 
@@ -45,7 +47,9 @@
 	let effectiveQuality = $state<QualityLevel>('high');
 	let dragging = false;
 
-	const worldUrl = (bust: boolean) => `/baked/${card.slug}.vxb${bust ? `?t=${Date.now()}` : ''}`;
+	// В dev мир печётся на лету (свежий на каждый запрос); в сборке — версия по содержимому.
+	const worldUrl = (): string =>
+		dev ? `/baked/${card.slug}.vxb?t=${Date.now()}` : withBase(card.world);
 
 	// Старт и скорость времени и небо применяются без перезагрузки страницы; остальное — см. reload().
 	const sceneFingerprint = (s: SceneConfig): string =>
@@ -99,7 +103,7 @@
 			const entities = await entitiesFor(diorama);
 			const atmosphere = await atmosphereFor(diorama);
 			if (ctl !== controller) return;
-			await ctl.reloadWorld(worldUrl(true), entities, atmosphere);
+			await ctl.reloadWorld(worldUrl(), entities, atmosphere);
 			await invalidateAll();
 			// Камера/туман/размер/подставка не применяются вживую — проще перезагрузить страницу.
 			if (mountedSceneFingerprint && sceneFingerprint(scene) !== mountedSceneFingerprint) {
@@ -141,7 +145,7 @@
 					loadDioramaModule(card.slug, dev),
 				]);
 				const ctl = await engine.mountDiorama(canvas, config, {
-					url: worldUrl(dev),
+					url: worldUrl(),
 					onProgress: (p) => {
 						progress = p;
 					},
@@ -259,7 +263,7 @@
 
 	{#if status === 'loading'}
 		<div class="overlay">
-			{#if card.thumb}<img class="backdrop" src={card.thumb} alt="" aria-hidden="true" />{/if}
+			{#if card.thumb}<img class="backdrop" src={withBase(card.thumb)} alt="" aria-hidden="true" />{/if}
 			<div class="panel">
 				<span>Загрузка… {Math.round(progress * 100)}%</span>
 				<div class="bar"><div style:width="{progress * 100}%"></div></div>
@@ -267,7 +271,7 @@
 		</div>
 	{:else if status === 'unsupported'}
 		<div class="overlay">
-			{#if card.thumb}<img class="backdrop sharp" src={card.thumb} alt={card.title} />{/if}
+			{#if card.thumb}<img class="backdrop sharp" src={withBase(card.thumb)} alt={card.title} />{/if}
 			<div class="panel">
 				<p>Браузер не поддерживает WebGPU или WebGL2, поэтому вместо 3D — снимок диорамы.</p>
 			</div>
@@ -284,7 +288,7 @@
 
 	{#if !capture}
 		<header class="hud top">
-			<a class="back" href="/">← Все диорамы</a>
+			<a class="back" href={resolve('/')}>← Все диорамы</a>
 			<h1>{card.title}</h1>
 		</header>
 		{#if status === 'ready'}
