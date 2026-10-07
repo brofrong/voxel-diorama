@@ -6,7 +6,7 @@ import { createWorldMaterials } from './render/materials.ts';
 import { backendName, createRenderer } from './render/renderer.ts';
 import { Stage } from './render/stage.ts';
 import { createAtmosphereUniforms } from './render/uniforms.ts';
-import type { EntityFactory, SceneConfig, TimeOfDay, WorldContext } from './types.ts';
+import type { EntityFactory, SceneConfig, SkyConfig, TimeOfDay, WorldContext } from './types.ts';
 import { buildHeightmap } from './voxel/heightmap.ts';
 import { MesherPool } from './voxel/mesher-pool.ts';
 import { buildPaletteLUT } from './voxel/palette.ts';
@@ -56,6 +56,8 @@ export interface DioramaController {
 	getHour(): number;
 	setTimeSpeed(speed: number): void;
 	getTimeSpeed(): number;
+	setSky(sky: SkyConfig): void;
+	getSky(): SkyConfig;
 	pause(): void;
 	resume(): void;
 	/** Перезагрузить мир (и сущности) без перезагрузки страницы; камера сохраняется. */
@@ -208,6 +210,11 @@ export async function mountDiorama(
 			clock.setSpeed(speed);
 		},
 		getTimeSpeed: () => (capture ? 0 : clock.speed),
+		setSky(sky) {
+			stage.setSky(sky);
+			redrawIfIdle();
+		},
+		getSky: () => stage.sky,
 		pause() {
 			userPaused = true;
 			syncLoop();

@@ -11,9 +11,16 @@ import {
 	Vector3,
 	type WebGPURenderer,
 } from 'three/webgpu';
-import { directionalLight, emissiveScale, nightFactor, paletteAt } from '../atmosphere/daycycle.ts';
-import { createSky, type Sky } from '../atmosphere/sky.ts';
-import type { SceneConfig } from '../types.ts';
+import {
+	directionalLight,
+	emissiveScale,
+	moonDirection,
+	nightFactor,
+	paletteAt,
+	sunDirection,
+} from '../atmosphere/daycycle.ts';
+import { createSkyView, type SkyView } from '../atmosphere/skies.ts';
+import type { SceneConfig, SkyConfig } from '../types.ts';
 import { createBaseMaterial } from './materials.ts';
 import type { AtmosphereUniforms } from './uniforms.ts';
 
@@ -32,7 +39,11 @@ export class Stage {
 
 	private readonly sun = new DirectionalLight();
 	private readonly hemi = new HemisphereLight();
-	private readonly sky: Sky;
+	private skyView: SkyView;
+	sky: SkyConfig;
+	private readonly skyRadius: number;
+	private readonly seed: number;
+	private lastHour = 13;
 	private readonly fog: FogExp2;
 	private readonly center: Vector3;
 	private readonly radius: number;
@@ -61,7 +72,10 @@ export class Stage {
 		this.controls.maxPolarAngle = Math.PI * 0.49;
 		this.controls.update();
 
-		this.sky = createSky(far * 0.9);
+		this.skyRadius = far * 0.9;
+		this.seed = config.seed;
+		this.sky = config.sky;
+		this.skyView = createSkyView(config.sky, this.scene, this.skyRadius, config.seed);
 		this.fog = new FogExp2('#ffffff', config.fog);
 		if (config.fog > 0) this.scene.fog = this.fog;
 
@@ -78,7 +92,7 @@ export class Stage {
 		shadowCamera.far = this.radius * 4;
 		shadowCamera.updateProjectionMatrix();
 
-		this.scene.add(this.sky.mesh, this.sun, this.sun.target, this.hemi, this.world);
+		this.scene.add(this.sun, this.sun.target, this.hemi, this.world);
 
 		if (config.base !== 'none') {
 			this.base = new Mesh(new BoxGeometry(sx + 4, 3, sz + 4), createBaseMaterial(config.base));
@@ -102,12 +116,27 @@ export class Stage {
 		this.hemi.color.set(p.hemiSky);
 		this.hemi.groundColor.set(p.hemiGround);
 		this.hemi.intensity = p.hemiIntensity;
-		this.sky.setColors(p.zenith, p.horizon);
+		this.lastHour = hour;
+		this.skyView.update({
+			palette: p,
+			sunDirection: sunDirection(hour),
+			moonDirection: moonDirection(hour),
+			night,
+			time: this.uniforms.time.value,
+		});
 		this.fog.color.set(p.fog);
 		this.renderer.toneMappingExposure = p.exposure;
 		this.uniforms.night.value = night;
 		this.uniforms.emissiveScale.value = emissiveScale(night);
 		this.uniforms.horizon.value.set(p.horizon);
+	}
+
+	setSky(sky: SkyConfig): void {
+		if (sky.kind === this.sky.kind && sky.color === this.sky.color) return;
+		this.skyView.dispose();
+		this.sky = sky;
+		this.skyView = createSkyView(sky, this.scene, this.skyRadius, this.seed);
+		this.setHour(this.lastHour);
 	}
 
 	resize(width: number, height: number): void {
@@ -118,7 +147,7 @@ export class Stage {
 
 	render(): void {
 		this.controls.update();
-		this.sky.mesh.position.copy(this.camera.position);
+		this.skyView.follow(this.camera.position);
 		this.renderer.render(this.scene, this.camera);
 	}
 
@@ -133,7 +162,7 @@ export class Stage {
 	dispose(): void {
 		disposeGroup(this.world);
 		this.controls.dispose();
-		this.sky.dispose();
+		this.skyView.dispose();
 		if (this.base) {
 			this.base.geometry.dispose();
 			(this.base.material as { dispose(): void }).dispose();

@@ -83,7 +83,7 @@ const KEYS: ReadonlyArray<readonly [number, TimeOfDay]> = [
 const COLOR_FIELDS = ['sunColor', 'hemiSky', 'hemiGround', 'zenith', 'horizon', 'fog'] as const;
 const NUMBER_FIELDS = ['sunIntensity', 'hemiIntensity', 'exposure'] as const;
 
-function mixHex(a: string, b: string, k: number): string {
+export function mixHex(a: string, b: string, k: number): string {
 	const x = hexToRgb8(a);
 	const y = hexToRgb8(b);
 	return rgb8ToHex(

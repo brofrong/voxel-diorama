@@ -24,14 +24,15 @@
 	const worldUrl = (bust: boolean) => `/baked/${card.slug}.vxb${bust ? `?t=${Date.now()}` : ''}`;
 
 	// Время суток — единственное, что применяется без перезагрузки страницы (см. reload()).
-	// Старт и скорость времени применяются без перезагрузки страницы; остальное — см. reload().
+	// Старт и скорость времени и небо применяются без перезагрузки страницы; остальное — см. reload().
 	const sceneFingerprint = (s: SceneConfig): string =>
-		JSON.stringify({ ...s, time: { cycle: s.time.cycle } });
+		JSON.stringify({ ...s, time: { cycle: s.time.cycle }, sky: undefined });
 
 	$effect(() => {
 		if (!controller) return;
 		controller.setHour(scene.time.start);
 		controller.setTimeSpeed(scene.time.speed);
+		controller.setSky(scene.sky);
 	});
 
 	async function entitiesFor(diorama: Diorama): Promise<EntityFactory> {
