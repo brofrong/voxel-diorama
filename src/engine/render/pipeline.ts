@@ -2,7 +2,7 @@ import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { boxBlur } from 'three/addons/tsl/display/boxBlur.js';
 import { fxaa } from 'three/addons/tsl/display/FXAANode.js';
 import { ao } from 'three/addons/tsl/display/GTAONode.js';
-import { int, pass, renderOutput, vec4 } from 'three/tsl';
+import { emissive, int, mrt, output, pass, renderOutput, vec4 } from 'three/tsl';
 import {
 	type Camera,
 	type Node,
@@ -12,6 +12,8 @@ import {
 } from 'three/webgpu';
 import type { QualityPreset } from './quality.ts';
 
+const BLOOM_STRENGTH = 0.6;
+
 export interface Pipeline {
 	render(): void;
 	/** Ночью bloom чуть сильнее. */
@@ -19,7 +21,7 @@ export interface Pipeline {
 	dispose(): void;
 }
 
-/** Сцена → GTAO (high) → bloom → тональная компрессия → FXAA (low). */
+/** Сцена → GTAO (high) → bloom по эмиссии → тональная компрессия → FXAA (low). */
 export function createPipeline(
 	renderer: WebGPURenderer,
 	scene: Scene,
@@ -28,6 +30,9 @@ export function createPipeline(
 ): Pipeline {
 	const samples = preset.aa === 'msaa2' ? 2 : 0;
 	const scenePass = pass(scene, camera, { samples });
+	// Bloom светит только излучающее (окна, фонари, огонь, неон). Если подать весь кадр,
+	// яркое небо и освещённые стены (выше порога) заливают картинку белой дымкой.
+	if (preset.bloom) scenePass.setMRT(mrt({ output, emissive }));
 	const sceneColor = scenePass.getTextureNode('output');
 	let color: Node<'vec4'> = sceneColor;
 	// Проход сцены владеет полноразмерным рендер-таргетом — освобождаем вместе с конвейером.
@@ -48,7 +53,7 @@ export function createPipeline(
 
 	let bloomPass: ReturnType<typeof bloom> | null = null;
 	if (preset.bloom) {
-		bloomPass = bloom(color, 0.6, 0.4, 0.85);
+		bloomPass = bloom(scenePass.getTextureNode('emissive'), BLOOM_STRENGTH, 0.4, 0);
 		color = color.add(bloomPass);
 		extra.push(bloomPass);
 	}
@@ -64,7 +69,7 @@ export function createPipeline(
 	return {
 		render: () => pipeline.render(),
 		setNight(night) {
-			if (bloomPass) bloomPass.strength.value = 0.6 + 0.3 * night;
+			if (bloomPass) bloomPass.strength.value = BLOOM_STRENGTH + 0.3 * night;
 		},
 		dispose() {
 			for (const node of extra) node.dispose();

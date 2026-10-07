@@ -25,3 +25,24 @@ for (const level of ['low', 'medium', 'high'] as const) {
 		expect(spy).toHaveBeenCalled();
 	});
 }
+
+// Bloom светит только то, что излучает (окна, фонари, огонь): небо и освещённые стены
+// раньше попадали в bloom целиком и заливали кадр белой дымкой (реалистичное небо днём).
+for (const level of ['medium', 'high'] as const) {
+	test(`${level}: bloom берёт эмиссию из отдельного выхода MRT, а не весь кадр`, () => {
+		const setMRT = spyOn(PassNode.prototype, 'setMRT');
+		const texture = spyOn(PassNode.prototype, 'getTextureNode');
+		spies.push(setMRT, texture);
+		createPipeline(fakeRenderer, new Scene(), new PerspectiveCamera(), QUALITY_PRESETS[level]);
+		const mrt = setMRT.mock.calls[0]?.[0] as { outputNodes?: Record<string, unknown> } | undefined;
+		expect(Object.keys(mrt?.outputNodes ?? {})).toContain('emissive');
+		expect(texture.mock.calls.map((call) => call[0])).toContain('emissive');
+	});
+}
+
+test('low: без bloom — без лишнего выхода MRT', () => {
+	const setMRT = spyOn(PassNode.prototype, 'setMRT');
+	spies.push(setMRT);
+	createPipeline(fakeRenderer, new Scene(), new PerspectiveCamera(), QUALITY_PRESETS.low);
+	expect(setMRT).not.toHaveBeenCalled();
+});
