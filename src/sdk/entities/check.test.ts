@@ -4,6 +4,7 @@ import { model } from '../builder/model.ts';
 import { type DioramaInput, defineDiorama } from '../schema.ts';
 import { custom, spin } from './behaviours.ts';
 import { checkEntities, entityWarnings } from './check.ts';
+import { walkPath } from './path.ts';
 
 const box = model({ size: [1, 1, 1], palette: { c: '#ffffff' } }, (m) => m.set([0, 0, 0], 'c'));
 
@@ -22,12 +23,22 @@ const diorama = (entities: DioramaInput['entities']) =>
 describe('checkEntities', () => {
 	test('считает сущности, экземпляры и части', () => {
 		const d = diorama([{ model: box, at: 'well', count: 3, animate: spin() }]);
-		expect(checkEntities(d, bakeDiorama(d))).toEqual({ entities: 1, instances: 3, parts: 3 });
+		expect(checkEntities(d, bakeDiorama(d))).toEqual({
+			entities: 1,
+			instances: 3,
+			parts: 3,
+			warnings: [],
+		});
 	});
 
 	test('без сущностей — нули', () => {
 		const d = diorama([]);
-		expect(checkEntities(d, bakeDiorama(d))).toEqual({ entities: 0, instances: 0, parts: 0 });
+		expect(checkEntities(d, bakeDiorama(d))).toEqual({
+			entities: 0,
+			instances: 0,
+			parts: 0,
+			warnings: [],
+		});
 	});
 
 	test('опечатка в якоре — ошибка с именем сущности', () => {
@@ -61,14 +72,52 @@ describe('checkEntities', () => {
 		]);
 		expect(() => checkEntities(nan, bakeDiorama(nan))).toThrow('NaN');
 	});
+
+	test('скачок высоты на земле — предупреждение, а не исключение', () => {
+		const jump = diorama([
+			{
+				id: 'ghost',
+				model: box,
+				at: [2, 2],
+				animate: custom((pose, t) => {
+					if (t >= 1.5) pose.position[1] += 10;
+				}),
+			},
+		]);
+		const stats = checkEntities(jump, bakeDiorama(jump));
+		expect(stats.warnings).toHaveLength(1);
+		expect(stats.warnings[0]).toContain('сущность ghost, t=1.5');
+		expect(stats.warnings[0]).toContain('скачок высоты');
+	});
+
+	test('плоский walkPath — без предупреждений о скачке высоты', () => {
+		const flat = diorama([
+			{
+				id: 'walker',
+				model: box,
+				animate: walkPath(
+					[
+						[2, 2],
+						[12, 12],
+					],
+					{ loop: 'pingpong' },
+				),
+			},
+		]);
+		const stats = checkEntities(flat, bakeDiorama(flat));
+		expect(stats.warnings).toEqual([]);
+	});
 });
 
-test('entityWarnings: предупреждение после 80% лимита', () => {
-	expect(entityWarnings({ entities: 1, instances: 10, parts: 10 })).toEqual([]);
-	expect(entityWarnings({ entities: 5, instances: 210, parts: 100 }).join()).toContain(
-		'210 из 256',
-	);
-	expect(entityWarnings({ entities: 5, instances: 100, parts: 500 }).join()).toContain(
-		'500 из 600',
-	);
+test('entityWarnings: предупреждение после 80% лимита, плюс скачки высоты из stats', () => {
+	expect(entityWarnings({ entities: 1, instances: 10, parts: 10, warnings: [] })).toEqual([]);
+	expect(
+		entityWarnings({ entities: 5, instances: 210, parts: 100, warnings: [] }).join(),
+	).toContain('210 из 256');
+	expect(
+		entityWarnings({ entities: 5, instances: 100, parts: 500, warnings: [] }).join(),
+	).toContain('500 из 600');
+	expect(
+		entityWarnings({ entities: 1, instances: 1, parts: 1, warnings: ['скачок высоты'] }),
+	).toEqual(['скачок высоты']);
 });
