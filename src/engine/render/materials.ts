@@ -12,7 +12,6 @@ import {
 	positionViewDirection,
 	pow,
 	saturate,
-	sin,
 	step,
 	transformNormalToView,
 	vec3,
@@ -56,8 +55,8 @@ export function createVoxelMaterial(
 		const a2 = p.z.mul(0.6).sub(u.time.mul(1.1)).add(p.x.mul(0.2));
 		const a3 = p.x.add(p.z).mul(0.9).add(u.time.mul(2.1));
 		const amp = float(WAVE_AMPLITUDE).mul(u.waves).mul(isTop);
-		const height = sin(a1).mul(0.5).add(sin(a2).mul(0.35)).add(sin(a3).mul(0.15)).mul(amp);
-		material.positionNode = p.add(vec3(0, height, 0));
+		// Волны только в нормалях: вершины не сдвигаем — у жадных квадов Т-стыки,
+		// и сдвиг по синусу раскрывает между ними щели.
 		const dx = cos(a1)
 			.mul(0.45 * 0.5)
 			.add(cos(a2).mul(0.2 * 0.35))
