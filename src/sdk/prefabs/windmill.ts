@@ -20,7 +20,7 @@ export function windmill(options: WindmillOptions = {}): Model {
 				axle: '#4a3020',
 				window: { color: '#ffd27a', emissive: 0.8 },
 			},
-			anchors: { hub: [4.5, 12.5, -0.5], door: [4.5, 0, 0.5] },
+			anchors: { hub: [4.5, 12.5, -0.5], door: [4.5, 0, -0.5] },
 		},
 		(m) => {
 			m.box([1, 0, 1], [7, 11, 7], 'wall');
