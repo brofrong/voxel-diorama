@@ -16,6 +16,7 @@
 		effectiveQuality: QualityLevel;
 		particles: boolean;
 		autoRotate: boolean;
+		showFps: boolean;
 		onHourInput: (hour: number) => void;
 		onDrag: (dragging: boolean) => void;
 		onSpeed: (speed: number) => void;
@@ -23,6 +24,7 @@
 		onQuality: (quality: QualitySetting) => void;
 		onParticles: (on: boolean) => void;
 		onAutoRotate: (on: boolean) => void;
+		onShowFps: (on: boolean) => void;
 		onReset: () => void;
 	}
 
@@ -98,7 +100,10 @@
 	<section class="toggles">
 		<label><input type="checkbox" checked={p.particles} onchange={(e) => p.onParticles(e.currentTarget.checked)} /> Частицы</label>
 		<label><input type="checkbox" checked={p.autoRotate} onchange={(e) => p.onAutoRotate(e.currentTarget.checked)} /> Вращение камеры</label>
+		<label><input type="checkbox" checked={p.showFps} onchange={(e) => p.onShowFps(e.currentTarget.checked)} /> FPS</label>
 	</section>
+
+	<p class="hint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — полёт, <kbd>Пробел</kbd> / <kbd>Shift</kbd> — вверх / вниз</p>
 
 	<button type="button" class="reset" onclick={p.onReset}>Сбросить к настройкам диорамы</button>
 </div>
@@ -179,6 +184,31 @@
 		display: flex;
 		gap: 16px;
 		font-size: 14px;
+	}
+	.toggles {
+		flex-wrap: wrap;
+	}
+	.hint {
+		margin: 0;
+		font-size: 12px;
+		color: var(--muted);
+		line-height: 1.8;
+	}
+	kbd {
+		display: inline-block;
+		min-width: 1.6em;
+		padding: 0 5px;
+		margin-right: 2px;
+		border-radius: 5px;
+		background: var(--surface-2);
+		color: var(--text);
+		font: inherit;
+		text-align: center;
+	}
+	@media (pointer: coarse) {
+		.hint {
+			display: none;
+		}
 	}
 	.reset {
 		background: transparent;

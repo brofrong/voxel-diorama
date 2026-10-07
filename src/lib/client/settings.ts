@@ -4,6 +4,8 @@ export interface ViewerSettings {
 	quality: QualitySetting;
 	particles: boolean;
 	autoRotate: boolean;
+	/** Счётчик кадров в секунду поверх сцены. */
+	showFps: boolean;
 }
 
 export const SETTINGS_KEY = 'voxel-diorama:settings';
@@ -26,6 +28,7 @@ export function parseSettings(raw: string | null): Partial<ViewerSettings> {
 		out.quality = v.quality as QualitySetting;
 	if (typeof v.particles === 'boolean') out.particles = v.particles;
 	if (typeof v.autoRotate === 'boolean') out.autoRotate = v.autoRotate;
+	if (typeof v.showFps === 'boolean') out.showFps = v.showFps;
 	return out;
 }
 
@@ -51,7 +54,12 @@ export function saveSettings(
 }
 
 export function serializeSettings(s: Partial<ViewerSettings>): string {
-	return JSON.stringify({ quality: s.quality, particles: s.particles, autoRotate: s.autoRotate });
+	return JSON.stringify({
+		quality: s.quality,
+		particles: s.particles,
+		autoRotate: s.autoRotate,
+		showFps: s.showFps,
+	});
 }
 
 export function resolveSettings(
@@ -59,11 +67,13 @@ export function resolveSettings(
 	defaults: { autoRotate: boolean; reducedMotion: boolean; capture?: boolean },
 ): ViewerSettings {
 	// Скриншот карточки не зависит от настроек зрителя (детерминизм кадра).
-	if (defaults.capture) return { quality: 'auto', particles: true, autoRotate: false };
+	if (defaults.capture)
+		return { quality: 'auto', particles: true, autoRotate: false, showFps: false };
 	return {
 		quality: stored.quality ?? 'auto',
 		particles: stored.particles ?? true,
 		autoRotate: stored.autoRotate ?? (defaults.autoRotate && !defaults.reducedMotion),
+		showFps: stored.showFps ?? false,
 	};
 }
 

@@ -21,7 +21,8 @@ import {
 	sunDirection,
 } from '../atmosphere/daycycle.ts';
 import { createSkyView, type SkyView } from '../atmosphere/skies.ts';
-import type { QualityLevel, SceneConfig, SkyConfig } from '../types.ts';
+import type { QualityLevel, SceneConfig, SkyConfig, Vec3 } from '../types.ts';
+import { type Box, clampPan } from './fly.ts';
 import { createBaseMaterial } from './materials.ts';
 import { createPipeline, type Pipeline } from './pipeline.ts';
 import { CSM_MIN_SPAN, QUALITY_PRESETS, type QualityPreset } from './quality.ts';
@@ -55,6 +56,8 @@ export class Stage {
 	preset: QualityPreset = QUALITY_PRESETS.high;
 	private pipeline: Pipeline | null = null;
 	private readonly span: number;
+	/** Куда может улететь цель камеры при полёте с клавиатуры. */
+	private readonly flyBox: Box;
 	/** CSM подключается при сборке шейдера света — решается один раз, до первого кадра. */
 	private shadowsFrozen = false;
 
@@ -67,6 +70,8 @@ export class Stage {
 		this.center = new Vector3(sx / 2, sy / 2, sz / 2);
 		this.radius = Math.hypot(sx, sy, sz) / 2;
 		this.span = Math.max(sx, sz);
+		const margin = this.span * 0.1;
+		this.flyBox = { min: [-margin, 0, -margin], max: [sx + margin, sy + margin, sz + margin] };
 
 		const far = config.camera.maxDistance * 2 + this.radius * 4;
 		this.camera = new PerspectiveCamera(40, 1, 0.5, far);
@@ -141,6 +146,28 @@ export class Stage {
 		this.uniforms.night.value = night;
 		this.uniforms.emissiveScale.value = emissiveScale(night);
 		this.uniforms.horizon.value.set(p.horizon);
+	}
+
+	/** Скорость полёта (ед./с): диорама из края в край — примерно за 8 с. */
+	get flySpeed(): number {
+		return this.span / 8;
+	}
+
+	/** Азимут камеры вокруг цели (для направления WASD). */
+	get yaw(): number {
+		return this.controls.getAzimuthalAngle();
+	}
+
+	/** Сдвиг камеры вместе с целью: вращение мышью продолжается вокруг новой точки. */
+	pan(delta: Vec3): void {
+		const t = this.controls.target;
+		const [dx, dy, dz] = clampPan([t.x, t.y, t.z], delta, this.flyBox);
+		t.set(t.x + dx, t.y + dy, t.z + dz);
+		this.camera.position.set(
+			this.camera.position.x + dx,
+			this.camera.position.y + dy,
+			this.camera.position.z + dz,
+		);
 	}
 
 	setAutoRotate(on: boolean): void {

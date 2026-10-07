@@ -4,6 +4,8 @@ import { EntityLayer } from './entities/layer.ts';
 import { LightLayer } from './lights.ts';
 import { fetchBytes } from './load.ts';
 import { type GroundField, ParticleLayer } from './particles/layer.ts';
+import { FlyInput, flyVelocity } from './render/fly.ts';
+import { FpsMeter } from './render/fps.ts';
 import { createWorldMaterials } from './render/materials.ts';
 import {
 	type DeviceCaps,
@@ -97,6 +99,8 @@ export interface DioramaController {
 	setAutoRotate(on: boolean): void;
 	/** Пересоздать сущности на текущем мире. */
 	setEntities(factory: EntityFactory | undefined): void;
+	/** Кадров в секунду (0 — на паузе или до первого замера). */
+	getFps(): number;
 	/** Кадр в заданном разрешении, webp. */
 	captureThumbnail(options?: CaptureOptions): Promise<Blob>;
 	dispose(): void;
@@ -147,6 +151,9 @@ export async function mountDiorama(
 	const positionOf = (index: number) => layer?.positionOf(index) ?? null;
 	let animTime = options.fixedTime ?? 0;
 	let lastFrame = performance.now();
+	// Кадр карточки не двигается с клавиатуры.
+	const fly = capture ? null : new FlyInput(window);
+	const fps = new FpsMeter();
 
 	const frame = (): void => {
 		uniforms.time.value = animTime;
@@ -173,7 +180,13 @@ export async function mountDiorama(
 
 	const loop = (): void => {
 		const now = performance.now();
-		const dt = Math.min(0.1, Math.max(0, (now - lastFrame) / 1000));
+		const raw = Math.max(0, (now - lastFrame) / 1000);
+		const dt = Math.min(0.1, raw);
+		fps.sample(raw);
+		if (fly && fly.keys.size > 0) {
+			const v = flyVelocity(fly.keys, stage.yaw, stage.flySpeed);
+			stage.pan([v[0] * dt, v[1] * dt, v[2] * dt]);
+		}
 		if (!capture) {
 			animTime += dt;
 			clock.advance(dt);
@@ -192,6 +205,7 @@ export async function mountDiorama(
 	const syncLoop = (): void => {
 		const running = !userPaused && !document.hidden && !disposed;
 		if (running) lastFrame = performance.now();
+		else fps.reset();
 		void renderer.setAnimationLoop(running ? loop : null);
 	};
 	document.addEventListener('visibilitychange', syncLoop);
@@ -267,6 +281,7 @@ export async function mountDiorama(
 		if (disposed) return;
 		disposed = true;
 		void renderer.setAnimationLoop(null);
+		fly?.dispose();
 		observer.disconnect();
 		document.removeEventListener('visibilitychange', syncLoop);
 		pool?.dispose();
@@ -338,6 +353,7 @@ export async function mountDiorama(
 			if (atmosphere !== undefined) atmosphereFactory = atmosphere;
 			return loadWorld(url, false);
 		},
+		getFps: () => fps.value,
 		setEntities(factory) {
 			entityFactory = factory;
 			rebuildEntities();

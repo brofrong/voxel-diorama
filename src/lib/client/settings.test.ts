@@ -34,19 +34,35 @@ describe('parseSettings', () => {
 		expect(parseSettings('{"quality":"medium","particles":3}')).toEqual({ quality: 'medium' });
 	});
 
+	test('showFps читается, если boolean', () => {
+		expect(parseSettings('{"showFps":true}')).toEqual({ showFps: true });
+		expect(parseSettings('{"showFps":"yes"}')).toEqual({});
+	});
+
 	test('serialize ↔ parse', () => {
-		const s = { quality: 'high' as const, particles: true, autoRotate: false };
+		const s = { quality: 'high' as const, particles: true, autoRotate: false, showFps: true };
 		expect(parseSettings(serializeSettings(s))).toEqual(s);
 	});
 });
 
 describe('resolveSettings', () => {
-	test('по умолчанию: авто, частицы вкл, автоповорот из диорамы', () => {
+	test('по умолчанию: авто, частицы вкл, автоповорот из диорамы, FPS скрыт', () => {
 		expect(resolveSettings({}, { autoRotate: true, reducedMotion: false })).toEqual({
 			quality: 'auto',
 			particles: true,
 			autoRotate: true,
+			showFps: false,
 		});
+	});
+
+	test('FPS: сохранённый выбор зрителя; в кадре карточки — всегда скрыт', () => {
+		expect(
+			resolveSettings({ showFps: true }, { autoRotate: false, reducedMotion: false }).showFps,
+		).toBe(true);
+		expect(
+			resolveSettings({ showFps: true }, { autoRotate: false, reducedMotion: false, capture: true })
+				.showFps,
+		).toBe(false);
 	});
 
 	test('reduced motion выключает автоповорот, если зритель не включал', () => {

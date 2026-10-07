@@ -43,7 +43,13 @@
 	let hour = $state(13);
 	let speed = $state(0);
 	let skyKind = $state<SkyKind>('gradient');
-	let settings = $state<ViewerSettings>({ quality: 'auto', particles: true, autoRotate: false });
+	let settings = $state<ViewerSettings>({
+		quality: 'auto',
+		particles: true,
+		autoRotate: false,
+		showFps: false,
+	});
+	let fps = $state(0);
 	let effectiveQuality = $state<QualityLevel>('high');
 	let dragging = false;
 
@@ -165,6 +171,7 @@
 				const poll = setInterval(() => {
 					if (!dragging) hour = ctl.getHour();
 					effectiveQuality = ctl.getQuality().effective;
+					fps = ctl.getFps();
 				}, 200);
 				cleanups.push(() => clearInterval(poll));
 				if (dev) exposeDevApi(ctl);
@@ -231,6 +238,9 @@
 			persist({ autoRotate: on });
 			controller?.setAutoRotate(on);
 		},
+		onShowFps(on: boolean) {
+			persist({ showFps: on });
+		},
 		onReset() {
 			hour = scene.time.start;
 			speed = scene.time.speed;
@@ -248,6 +258,9 @@
 	function onWindowPointer(e: PointerEvent): void {
 		const target = e.target as HTMLElement | null;
 		if (menuOpen && !target?.closest('.panel, .settings-button')) menuOpen = false;
+		// Клик по сцене снимает фокус с кнопок: иначе пробел нажимал бы их, а не поднимал камеру.
+		if (target === canvas && document.activeElement instanceof HTMLElement)
+			document.activeElement.blur();
 	}
 
 	function toggleFullscreen(): void {
@@ -292,6 +305,9 @@
 			<h1>{card.title}</h1>
 		</header>
 		{#if status === 'ready'}
+			{#if settings.showFps}
+				<div class="hud fps">{fps > 0 ? fps : '—'} FPS</div>
+			{/if}
 			<div class="hud bottom">
 				<button type="button" onclick={togglePause} aria-label={paused ? 'Продолжить' : 'Пауза'}>
 					{paused ? '▶' : '❚❚'}
@@ -316,6 +332,7 @@
 					{effectiveQuality}
 					particles={settings.particles}
 					autoRotate={settings.autoRotate}
+					showFps={settings.showFps}
 					{...handlers}
 				/>
 			{/if}
@@ -409,6 +426,13 @@
 	}
 	.back:hover {
 		color: var(--text);
+	}
+	.fps {
+		bottom: 16px;
+		left: 16px;
+		padding: 6px 10px;
+		font-size: 13px;
+		font-variant-numeric: tabular-nums;
 	}
 	.bottom {
 		bottom: 16px;
