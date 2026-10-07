@@ -1,7 +1,11 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { bakeToVxb, SIZE_LIMIT_BYTES } from '#sdk';
+import { checkBuildEnv } from './lib/build-env.ts';
 import { listSlugs, loadDiorama, ROOT } from './lib/dioramas.ts';
+
+const env = checkBuildEnv(process.env);
+console.log(`сборка для ${env.origin}${env.base}/`);
 
 const outDir = join(ROOT, 'static/baked');
 rmSync(outDir, { recursive: true, force: true });

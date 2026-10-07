@@ -6,6 +6,7 @@
 	"scripts": {
 		"dev": "vite dev",
 		"build": "bun run scripts/bake-all.ts && vite build",
+		"build:local": "SITE_ORIGIN=http://localhost:4173 bun run build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check:types": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
