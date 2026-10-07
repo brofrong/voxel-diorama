@@ -1,7 +1,9 @@
 export { type BirdOptions, bird } from './bird.ts';
 export { boat } from './boat.ts';
+export { campfire } from './campfire.ts';
 export { type CatOptions, cat } from './cat.ts';
 export { type HouseOptions, house } from './house.ts';
+export { lantern } from './lantern.ts';
 export { type PineOptions, pine } from './pine.ts';
 export { type RockOptions, rock } from './rock.ts';
 export { type TreeOptions, tree } from './tree.ts';

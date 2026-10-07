@@ -27,7 +27,10 @@ export function house(options: HouseOptions = {}): Model {
 				window: { color: '#ffd27a', emissive: 0.8 },
 				chimney: '#7d7d7d',
 			},
-			anchors: { door: [mid + 0.5, 0, -0.5] },
+			anchors: {
+				door: [mid + 0.5, 0, -0.5],
+				chimney: [width - 0.5, wallHeight + roofLayers + 1, 2.5],
+			},
 		},
 		(m) => {
 			m.box([1, 0, 1], [width, wallHeight - 1, depth], 'wall');
