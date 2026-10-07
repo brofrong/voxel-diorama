@@ -1,8 +1,10 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+	atmosphereWarnings,
 	bakeToVxb,
 	bakeWarnings,
+	checkAtmosphere,
 	checkEntities,
 	entityWarnings,
 	SIZE_LIMIT_BYTES,
@@ -63,7 +65,17 @@ for (const slug of targets) {
 				`  сущностей ${entityStats.entities} · экземпляров ${entityStats.instances} · частей ${entityStats.parts}`,
 			);
 		}
-		for (const warning of [...bakeWarnings(stats), ...entityWarnings(entityStats)]) {
+		const atmosphereStats = checkAtmosphere(diorama, result);
+		if (atmosphereStats.emitters + atmosphereStats.lights > 0) {
+			console.log(
+				`  эмиттеров ${atmosphereStats.emitters} · частиц ${atmosphereStats.particles.toLocaleString('ru-RU')} · света ${atmosphereStats.lights}`,
+			);
+		}
+		for (const warning of [
+			...bakeWarnings(stats),
+			...entityWarnings(entityStats),
+			...atmosphereWarnings(atmosphereStats),
+		]) {
 			console.log(`  ⚠ ${warning}`);
 		}
 		if (!existsSync(join(ROOT, 'static/thumbs', `${slug}.webp`))) {

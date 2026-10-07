@@ -1,5 +1,12 @@
 import { expect, test } from 'bun:test';
-import { bakeToVxb, checkEntities, SIZE_LIMIT_BYTES, SLUG_RE } from '#sdk';
+import {
+	bakeToVxb,
+	checkAtmosphere,
+	checkEntities,
+	SIZE_LIMIT_BYTES,
+	SLUG_RE,
+	toSceneConfig,
+} from '#sdk';
 import { listDioramaDirs, listSlugs, loadDiorama } from '../../scripts/lib/dioramas.ts';
 
 test('папки диорам названы в kebab-case', () => {
@@ -19,5 +26,12 @@ for (const slug of listSlugs()) {
 		expect(a.stats.bytes).toBeLessThan(SIZE_LIMIT_BYTES);
 		expect(Buffer.from(a.bytes).equals(Buffer.from(b.bytes))).toBe(true);
 		expect(() => checkEntities(diorama, a.result)).not.toThrow();
+		expect(() => checkAtmosphere(diorama, a.result)).not.toThrow();
 	}, 30_000);
 }
+
+test('quiet-valley: старое time.fixed = закат, время стоит, небо градиент', async () => {
+	const scene = toSceneConfig(await loadDiorama('quiet-valley'));
+	expect(scene.time).toEqual({ start: 18.5, speed: 0, cycle: 120 });
+	expect(scene.sky).toEqual({ kind: 'gradient' });
+});

@@ -1,3 +1,4 @@
+export { type AtmosphereStats, atmosphereWarnings, checkAtmosphere } from './check.ts';
 export { isLightDef, type LightDef, type PointLightOptions, pointLight } from './lights.ts';
 export {
 	type AreaEmitterOptions,
