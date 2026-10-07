@@ -83,10 +83,13 @@ function emitter(
 		const k = SIZE_SCALE[o.size ?? 'medium'];
 		const { origin, attach } = place(o.at, o.attachTo, ctx);
 		const c = o.color ?? null;
+		const lifetime = o.lifetime ?? t.lifetime;
+		const push = o.velocity ?? [0, 0, 0];
 		return {
 			...common,
-			count: Math.max(1, Math.round((o.rate ?? t.rate ?? 1) * t.lifetime)),
-			lifetime: t.lifetime,
+			velocity: [t.velocity[0] + push[0], t.velocity[1] + push[1], t.velocity[2] + push[2]],
+			count: Math.max(1, Math.round((o.rate ?? t.rate ?? 1) * lifetime)),
+			lifetime,
 			origin,
 			extent: [t.extent[0] * k, t.extent[1], t.extent[2] * k],
 			size: [t.size[0] * k, t.size[1] * k],

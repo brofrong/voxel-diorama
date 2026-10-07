@@ -153,7 +153,7 @@ export const dioramaSchema = z.strictObject({
 		.array(
 			z.custom<ParticleDef>(
 				isParticleDef,
-				'particles: ожидается smoke(…), fire(…), sparks(…), fireflies(…), snow(…), rain(…), leaves(…), mist(…) или dust(…)',
+				'particles: ожидается smoke(…), fire(…), sparks(…), fountain(…), pour(…), fireflies(…), snow(…), rain(…), leaves(…), mist(…) или dust(…)',
 			),
 		)
 		.max(32)

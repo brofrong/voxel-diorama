@@ -34,7 +34,7 @@ Bun · SvelteKit 3 + Svelte 5 (runes) · Vite 8 · Three.js (`WebGPURenderer` + 
 - Y вверх, целые координаты, 1 воксель = 1 единица. Чанк 32³, ≤ 255 материалов на диораму.
 - В `src/sdk` и `src/dioramas` **нельзя `Math.random`** — только `w.rng` (детерминизм запекания).
 - Диорамы импортируют только `#sdk`.
-- Атмосфера: `atmosphere.time` (`start`/`speed`/`cycle`, синонимы `dawn`/`day`/`sunset`/`night`), `atmosphere.sky` (`gradient`/`solid`/`realistic`/`stylized`), `particles` (`smoke`, `fire`, `sparks`, `fireflies`, `snow`, `rain`, `leaves`, `mist`, `dust`), `lights` (`pointLight`). Частицы — без состояния на GPU, функция от часов анимации и seed. Качество (`low`/`medium`/`high`/авто) — настройка зрителя, не диорамы; `?capture` всегда `high`.
+- Атмосфера: `atmosphere.time` (`start`/`speed`/`cycle`, синонимы `dawn`/`day`/`sunset`/`night`), `atmosphere.sky` (`gradient`/`solid`/`realistic`/`stylized`), `particles` (`smoke`, `fire`, `sparks`, `fountain`, `pour`, `fireflies`, `snow`, `rain`, `leaves`, `mist`, `dust`), `lights` (`pointLight`). Частицы — без состояния на GPU, функция от часов анимации и seed. Качество (`low`/`medium`/`high`/авто) — настройка зрителя, не диорамы; `?capture` всегда `high`.
 - Импорты: внутри `src/engine`, `src/sdk`, `scripts`, `vite` — относительные с `.ts`; в `src/lib`/`src/routes` — `#lib/...ts`, `#sdk`, `#engine`.
 - Three.js — только из `three/webgpu`, `three/tsl`, `three/addons/...`.
 - SvelteKit 3: конфиг кита в `vite.config.ts`, окружение — `$app/env`.

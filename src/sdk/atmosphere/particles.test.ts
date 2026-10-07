@@ -43,6 +43,10 @@ describe('фабрики частиц', () => {
 		expect(() => snow({ intensity: 3 })).toThrow('intensity');
 		expect(() => fireflies({ count: 0 })).toThrow('count');
 		expect(() => mist({ height: 0 })).toThrow('height');
+		expect(() => smoke({ at: [1, 1], lifetime: 0 })).toThrow('lifetime');
+		expect(() => smoke({ at: [1, 1], lifetime: 25 })).toThrow('lifetime');
+		expect(() => smoke({ at: [1, 1], velocity: [0, 30, 0] })).toThrow('velocity');
+		expect(() => smoke({ at: [1, 1], velocity: [Number.NaN, 0, 0] })).toThrow('velocity');
 	});
 });
 

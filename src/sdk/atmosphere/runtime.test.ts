@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { AtmosphereContext, Vec3 } from '../../engine/types.ts';
 import { pointLight } from './lights.ts';
-import { fireflies, PARTICLE_TEMPLATES, smoke, snow } from './particles.ts';
+import { fireflies, fountain, PARTICLE_TEMPLATES, pour, smoke, snow } from './particles.ts';
 import { createAtmosphereRuntime } from './runtime.ts';
 
 const ctx = (over: Partial<AtmosphereContext> = {}): AtmosphereContext => ({
@@ -99,5 +99,46 @@ describe('createAtmosphereRuntime: свет', () => {
 	test('больше 8 источников — ошибка', () => {
 		const nine = Array.from({ length: 9 }, () => pointLight({ at: [1, 1] }));
 		expect(() => run([], nine)).toThrow('слишком много источников света: 9');
+	});
+});
+
+describe('fountain', () => {
+	test('водяные брызги: вверх и обратно вниз, без свечения, полупрозрачные', () => {
+		const [e] = run([fountain({ at: 'house.chimney' })]).emitters;
+		expect(e.velocity[1]).toBeGreaterThan(0);
+		expect(e.gravity).toBeLessThan(0);
+		expect(e.emissive).toBe(0);
+		expect(e.opacity).toBeLessThan(1);
+		// К концу жизни брызги падают ниже точки выброса (в чашу).
+		const t = e.lifetime;
+		expect(e.velocity[1] * t + 0.5 * e.gravity * t * t).toBeLessThan(0);
+		const rate = PARTICLE_TEMPLATES.fountain.rate ?? Number.NaN;
+		expect(e.count).toBe(Math.round(rate * e.lifetime));
+	});
+});
+
+describe('pour', () => {
+	test('перелив через край: почти без подъёма, быстро вниз, без свечения', () => {
+		const [e] = run([pour({ at: 'house.chimney' })]).emitters;
+		expect(e.velocity[1]).toBeLessThan(1);
+		expect(e.gravity).toBeLessThan(-5);
+		expect(e.emissive).toBe(0);
+		// За жизнь струя опускается хотя бы на 5 вокселей (с верхней чаши в нижнюю).
+		const t = e.lifetime;
+		expect(e.velocity[1] * t + 0.5 * e.gravity * t * t).toBeLessThan(-5);
+	});
+});
+
+describe('струи: velocity и lifetime точечного эмиттера', () => {
+	test('velocity добавляется к скорости пресета', () => {
+		const [e] = run([fountain({ at: 'house.chimney', velocity: [2, 0.5, -1] })]).emitters;
+		const v = PARTICLE_TEMPLATES.fountain.velocity;
+		expect(e.velocity).toEqual([v[0] + 2, v[1] + 0.5, v[2] - 1]);
+	});
+
+	test('lifetime заменяет время жизни пресета, число частиц — rate × lifetime', () => {
+		const [e] = run([pour({ at: 'house.chimney', rate: 40, lifetime: 2.5 })]).emitters;
+		expect(e.lifetime).toBe(2.5);
+		expect(e.count).toBe(100);
 	});
 });

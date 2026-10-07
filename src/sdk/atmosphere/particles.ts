@@ -2,7 +2,7 @@ import type { Vec3 } from '../../engine/types.ts';
 import type { Point } from '../entities/types.ts';
 import { HEX_COLOR } from '../materials.ts';
 
-export type PointPreset = 'smoke' | 'fire' | 'sparks';
+export type PointPreset = 'smoke' | 'fire' | 'sparks' | 'fountain' | 'pour';
 export type AreaPreset = 'fireflies' | 'snow' | 'rain' | 'leaves' | 'mist' | 'dust';
 export type ParticlePreset = PointPreset | AreaPreset;
 /** [x0, z0, x1, z1] */
@@ -18,6 +18,10 @@ export interface PointEmitterOptions {
 	color?: string;
 	onlyAtNight?: boolean;
 	size?: 'small' | 'medium' | 'large';
+	/** Добавка к скорости пресета (ед./с): направление струи, например наклон дуги фонтана. */
+	velocity?: Vec3;
+	/** Время жизни частицы, с (0.1..20) вместо пресетного — чтобы струя долетела дальше. */
+	lifetime?: number;
 }
 
 export interface AreaEmitterOptions {
@@ -104,6 +108,33 @@ export const PARTICLE_TEMPLATES: Readonly<Record<ParticlePreset, ParticleTemplat
 		size: [0.35, 0.05],
 		color: ['#ffd27a', '#ff4a1a'],
 		emissive: 3,
+		rate: 40,
+	},
+	fountain: {
+		...base,
+		lifetime: 1.3,
+		extent: [0.15, 0, 0.15],
+		velocity: [0, 3.4, 0],
+		jitter: [0.7, 0.4, 0.7],
+		gravity: -6,
+		wind: { amp: 0.04, freq: 3 },
+		size: [0.2, 0.12],
+		color: ['#f2fbff', '#a8daf2'],
+		opacity: 0.8,
+		rate: 70,
+	},
+	pour: {
+		...base,
+		lifetime: 1.3,
+		extent: [0.3, 0, 0.3],
+		velocity: [0, 0.2, 0],
+		jitter: [0.25, 0.1, 0.25],
+		gravity: -9,
+		wind: { amp: 0.03, freq: 2 },
+		size: [0.18, 0.14],
+		color: ['#e6f6ff', '#9fd4f0'],
+		opacity: 0.75,
+		stretch: 2,
 		rate: 40,
 	},
 	sparks: {
@@ -231,6 +262,10 @@ function point(preset: PointPreset, o: PointEmitterOptions): ParticleDef {
 	}
 	if (o.rate !== undefined && !(o.rate > 0 && o.rate <= 500))
 		throw new Error(`${preset}: rate — от 0 до 500 частиц/с`);
+	if (o.lifetime !== undefined && !(o.lifetime >= 0.1 && o.lifetime <= 20))
+		throw new Error(`${preset}: lifetime — от 0.1 до 20 с`);
+	if (o.velocity !== undefined && !o.velocity.every((c) => Math.abs(c) <= 20))
+		throw new Error(`${preset}: velocity — компоненты от -20 до 20`);
 	checkColor(preset, o.color);
 	return { kind: 'particles', preset, point: { ...o } };
 }
@@ -259,6 +294,10 @@ export const smoke = (o: PointEmitterOptions): ParticleDef => point('smoke', o);
 export const fire = (o: PointEmitterOptions): ParticleDef => point('fire', o);
 /** Искры — светятся, падают. */
 export const sparks = (o: PointEmitterOptions): ParticleDef => point('sparks', o);
+/** Перелив: вода стекает через край чаши и падает вниз. */
+export const pour = (o: PointEmitterOptions): ParticleDef => point('pour', o);
+/** Струи фонтана: вода вверх и обратно в чашу. */
+export const fountain = (o: PointEmitterOptions): ParticleDef => point('fountain', o);
 /** Светлячки над землёй; по умолчанию только ночью. */
 export const fireflies = (o: AreaEmitterOptions = {}): ParticleDef => area('fireflies', o);
 export const snow = (o: AreaEmitterOptions = {}): ParticleDef => area('snow', o);
