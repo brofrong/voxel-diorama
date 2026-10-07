@@ -112,8 +112,12 @@ export async function mountDiorama(
 	syncLoop();
 
 	const rebuildEntities = (): void => {
+		if (disposed) return;
 		layer?.dispose();
 		layer = null;
+		// Новый слой сущностей — свежий FlockSim; без сброса долгая сессия пересимулировала бы
+		// стаю с t=0 до текущего animTime на каждый reload (фриз главного потока).
+		animTime = options.fixedTime ?? 0;
 		if (entityFactory && worldContext) {
 			try {
 				layer = new EntityLayer(entityFactory(worldContext), materials);
