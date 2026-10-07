@@ -1,12 +1,23 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import type {
 		AtmosphereFactory,
 		DioramaController,
 		EntityFactory,
+		QualityLevel,
+		QualitySetting,
 		SceneConfig,
+		SkyKind,
 	} from '#engine';
 	import { loadDioramaModule } from '#lib/client/diorama-loader.ts';
+	import {
+		parseSettings,
+		resolveSettings,
+		SETTINGS_KEY,
+		serializeSettings,
+		type ViewerSettings,
+	} from '#lib/client/settings.ts';
+	import SettingsPanel from '#lib/components/SettingsPanel.svelte';
 	import type { CardData } from '#lib/types.ts';
 	import type { Diorama } from '#sdk';
 	import { dev } from '$app/env';
@@ -26,18 +37,29 @@
 	let controller = $state.raw<DioramaController | null>(null);
 	let mountedSceneFingerprint = '';
 
+	// Начальные значения из диорамы выставляются в onMount (пропсы здесь не захватываем).
+	let menuOpen = $state(false);
+	let hour = $state(13);
+	let speed = $state(0);
+	let skyKind = $state<SkyKind>('gradient');
+	let settings = $state<ViewerSettings>({ quality: 'auto', particles: true, autoRotate: false });
+	let effectiveQuality = $state<QualityLevel>('high');
+	let dragging = false;
+
 	const worldUrl = (bust: boolean) => `/baked/${card.slug}.vxb${bust ? `?t=${Date.now()}` : ''}`;
 
-	// Время суток — единственное, что применяется без перезагрузки страницы (см. reload()).
 	// Старт и скорость времени и небо применяются без перезагрузки страницы; остальное — см. reload().
 	const sceneFingerprint = (s: SceneConfig): string =>
 		JSON.stringify({ ...s, time: { cycle: s.time.cycle }, sky: undefined });
 
+	// Эффект срабатывает от правок диорамы при HMR, а не от выбора скорости в меню —
+	// скорость зрителя сохраняется.
 	$effect(() => {
 		if (!controller) return;
 		controller.setHour(scene.time.start);
-		controller.setTimeSpeed(scene.time.speed);
+		controller.setTimeSpeed(untrack(() => speed));
 		controller.setSky(scene.sky);
+		skyKind = scene.sky.kind;
 	});
 
 	async function atmosphereFor(diorama: Diorama): Promise<AtmosphereFactory> {
@@ -54,6 +76,9 @@
 		window.__diorama = {
 			slug: card.slug,
 			setTime: (time) => ctl.setTime(time),
+			setHour: (h) => ctl.setHour(h),
+			setSky: (kind) => ctl.setSky({ kind }),
+			setQuality: (q) => ctl.setQuality(q),
 			async saveThumbnail() {
 				const blob = await ctl.captureThumbnail({ width: 1200, height: 800 });
 				const response = await fetch(`/__dev/thumb/${card.slug}`, {
@@ -67,14 +92,15 @@
 	}
 
 	async function reload(): Promise<void> {
-		if (!controller) return;
+		// Контроллер берём до await: компонент может размонтироваться посреди HMR.
+		const ctl = controller;
+		if (!ctl) return;
 		try {
 			const diorama = await loadDioramaModule(card.slug, true);
-			await controller.reloadWorld(
-				worldUrl(true),
-				await entitiesFor(diorama),
-				await atmosphereFor(diorama),
-			);
+			const entities = await entitiesFor(diorama);
+			const atmosphere = await atmosphereFor(diorama);
+			if (ctl !== controller) return;
+			await ctl.reloadWorld(worldUrl(true), entities, atmosphere);
 			await invalidateAll();
 			// Камера/туман/размер/подставка не применяются вживую — проще перезагрузить страницу.
 			if (mountedSceneFingerprint && sceneFingerprint(scene) !== mountedSceneFingerprint) {
@@ -89,9 +115,22 @@
 		let disposed = false;
 		capture = new URLSearchParams(location.search).has('capture');
 		canFullscreen = document.fullscreenEnabled === true;
+		const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		hour = scene.time.start;
+		speed = reducedMotion ? 0 : scene.time.speed;
+		skyKind = scene.sky.kind;
+		settings = resolveSettings(parseSettings(localStorage.getItem(SETTINGS_KEY)), {
+			autoRotate: scene.camera.autoRotate,
+			reducedMotion,
+		});
 		const config: SceneConfig = capture
 			? { ...scene, camera: { ...scene.camera, autoRotate: false } }
-			: scene;
+			: {
+					...scene,
+					time: { ...scene.time, speed },
+					camera: { ...scene.camera, autoRotate: settings.autoRotate },
+				};
+		const cleanups: Array<() => void> = [];
 		mountedSceneFingerprint = sceneFingerprint(scene);
 
 		(async () => {
@@ -109,6 +148,8 @@
 					entities: await entitiesFor(diorama),
 					atmosphere: await atmosphereFor(diorama),
 					fixedTime: capture ? scene.captureTime : undefined,
+					quality: settings.quality,
+					particles: settings.particles,
 				});
 				if (disposed) {
 					ctl.dispose();
@@ -116,6 +157,12 @@
 				}
 				controller = ctl;
 				status = 'ready';
+				effectiveQuality = ctl.getQuality().effective;
+				const poll = setInterval(() => {
+					if (!dragging) hour = ctl.getHour();
+					effectiveQuality = ctl.getQuality().effective;
+				}, 200);
+				cleanups.push(() => clearInterval(poll));
 				if (dev) exposeDevApi(ctl);
 			} catch (error) {
 				if (disposed) return;
@@ -132,6 +179,7 @@
 
 		return () => {
 			disposed = true;
+			for (const cleanup of cleanups) cleanup();
 			import.meta.hot?.off('diorama:update', onUpdate);
 			controller?.dispose();
 			controller = null;
@@ -146,11 +194,65 @@
 		paused = !paused;
 	}
 
+	function persist(next: Partial<ViewerSettings>): void {
+		settings = { ...settings, ...next };
+		localStorage.setItem(SETTINGS_KEY, serializeSettings(settings));
+	}
+
+	const handlers = {
+		onHourInput(h: number) {
+			hour = h;
+			controller?.setHour(h);
+		},
+		onDrag(d: boolean) {
+			dragging = d;
+		},
+		onSpeed(s: number) {
+			speed = s;
+			controller?.setTimeSpeed(s);
+		},
+		onSky(kind: SkyKind) {
+			skyKind = kind;
+			controller?.setSky({ kind, color: kind === 'solid' ? scene.sky.color : undefined });
+		},
+		onQuality(q: QualitySetting) {
+			persist({ quality: q });
+			controller?.setQuality(q);
+		},
+		onParticles(on: boolean) {
+			persist({ particles: on });
+			controller?.setParticles(on);
+		},
+		onAutoRotate(on: boolean) {
+			persist({ autoRotate: on });
+			controller?.setAutoRotate(on);
+		},
+		onReset() {
+			hour = scene.time.start;
+			speed = scene.time.speed;
+			skyKind = scene.sky.kind;
+			controller?.setHour(hour);
+			controller?.setTimeSpeed(speed);
+			controller?.setSky(scene.sky);
+		},
+	};
+
+	function onWindowKey(e: KeyboardEvent): void {
+		if (e.key === 'Escape') menuOpen = false;
+	}
+
+	function onWindowPointer(e: PointerEvent): void {
+		const target = e.target as HTMLElement | null;
+		if (menuOpen && !target?.closest('.panel, .settings-button')) menuOpen = false;
+	}
+
 	function toggleFullscreen(): void {
 		if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
 		else void document.documentElement.requestFullscreen().catch(() => {});
 	}
 </script>
+
+<svelte:window onkeydown={onWindowKey} onpointerdown={onWindowPointer} />
 
 <div class="viewer" class:capture data-status={status}>
 	<canvas bind:this={canvas}></canvas>
@@ -194,6 +296,25 @@
 					<button type="button" onclick={toggleFullscreen} aria-label="Во весь экран">⛶</button>
 				{/if}
 			</div>
+			<button
+				type="button"
+				class="settings-button"
+				aria-expanded={menuOpen}
+				aria-label="Настройки"
+				onclick={() => (menuOpen = !menuOpen)}>⚙ <span class="label">Настройки</span></button
+			>
+			{#if menuOpen}
+				<SettingsPanel
+					{hour}
+					{speed}
+					sky={skyKind}
+					quality={settings.quality}
+					{effectiveQuality}
+					particles={settings.particles}
+					autoRotate={settings.autoRotate}
+					{...handlers}
+				/>
+			{/if}
 		{/if}
 	{/if}
 </div>
@@ -203,6 +324,7 @@
 		position: fixed;
 		inset: 0;
 		background: var(--bg);
+		overscroll-behavior: none;
 	}
 	canvas {
 		width: 100%;
@@ -290,8 +412,8 @@
 		transform: translateX(-50%);
 	}
 	button {
-		min-width: 36px;
-		height: 36px;
+		min-width: 40px;
+		height: 40px;
 		border: 0;
 		border-radius: 10px;
 		background: var(--surface-2);
@@ -301,5 +423,18 @@
 	}
 	button:hover {
 		background: #2a2e39;
+	}
+	.settings-button {
+		position: absolute;
+		top: 16px;
+		right: 16px;
+		padding: 0 14px;
+		background: rgb(14 15 19 / 0.55);
+		backdrop-filter: blur(8px);
+	}
+	@media (max-width: 600px) {
+		.settings-button .label {
+			display: none;
+		}
 	}
 </style>

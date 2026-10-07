@@ -94,6 +94,7 @@ export interface DioramaController {
 	/** Перезагрузить мир (и сущности) без перезагрузки страницы; камера сохраняется. */
 	reloadWorld(url: string, entities?: EntityFactory, atmosphere?: AtmosphereFactory): Promise<void>;
 	setParticles(on: boolean): void;
+	setAutoRotate(on: boolean): void;
 	/** Пересоздать сущности на текущем мире. */
 	setEntities(factory: EntityFactory | undefined): void;
 	/** Кадр в заданном разрешении, webp. */
@@ -316,6 +317,9 @@ export async function mountDiorama(
 			redrawIfIdle();
 		},
 		getQuality: () => ({ setting: qualitySetting, effective: stage.quality }),
+		setAutoRotate(on) {
+			stage.setAutoRotate(on);
+		},
 		setParticles(on) {
 			particlesEnabled = on;
 			particles?.setEnabled(on);

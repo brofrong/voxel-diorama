@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 // See https://svelte.dev/docs/kit/types#app.d.ts
-import type { TimeOfDay } from '#engine';
+import type { QualitySetting, SkyKind, TimeOfDay } from '#engine';
 
 declare global {
 	namespace App {
@@ -16,6 +16,9 @@ declare global {
 		__diorama?: {
 			slug: string;
 			setTime(time: TimeOfDay): void;
+			setHour(hour: number): void;
+			setSky(kind: SkyKind): void;
+			setQuality(quality: QualitySetting): void;
 			saveThumbnail(): Promise<{ ok: boolean; path?: string; bytes?: number; error?: string }>;
 		};
 	}

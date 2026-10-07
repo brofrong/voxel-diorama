@@ -143,6 +143,10 @@ export class Stage {
 		this.uniforms.horizon.value.set(p.horizon);
 	}
 
+	setAutoRotate(on: boolean): void {
+		this.controls.autoRotate = on;
+	}
+
 	setSky(sky: SkyConfig): void {
 		if (sky.kind === this.sky.kind && sky.color === this.sky.color) return;
 		this.skyView.dispose();
