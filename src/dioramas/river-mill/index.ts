@@ -78,7 +78,7 @@ export default defineDiorama({
 		{
 			id: 'cat',
 			rig: prefabs.cat({ color: '#e67e22' }),
-			animate: wander({ area: [52, 66, 70, 76], speed: 0.6 }),
+			animate: wander({ area: [52, 69, 70, 76], speed: 0.6 }),
 		},
 		{
 			id: 'birds',
