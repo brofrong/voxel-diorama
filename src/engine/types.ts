@@ -3,6 +3,21 @@ export type TimeOfDay = 'dawn' | 'day' | 'sunset' | 'night';
 export type BaseStyle = 'none' | 'wood' | 'stone';
 export type MaterialKind = 'solid' | 'water' | 'glass';
 
+/** Время суток диорамы: час начала, скорость (×), длина суток в секундах при 1x. */
+export interface TimeConfig {
+	start: number;
+	speed: number;
+	cycle: number;
+}
+
+export type SkyKind = 'gradient' | 'solid' | 'realistic' | 'stylized';
+
+export interface SkyConfig {
+	kind: SkyKind;
+	/** Только для `solid`: фиксированный цвет фона. */
+	color?: string;
+}
+
 export interface Material {
 	/** sRGB, `#rrggbb` в нижнем регистре. */
 	color: string;
