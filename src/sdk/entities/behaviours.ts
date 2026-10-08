@@ -158,3 +158,63 @@ export function custom(fn: (pose: Pose, t: number, ctx: BehaviourContext) => voi
 		create: (ctx) => (pose, t) => fn(pose, t, ctx),
 	};
 }
+
+/** Что знает функция части: время, походка и фаза шага (для синхронной ходьбы). */
+export interface LimbState {
+	/** Время анимации, с. */
+	t: number;
+	gait: Pose['gait'];
+	/** Пройденное расстояние (ед. мира) — растёт только при ходьбе. */
+	stride: number;
+	/** Фаза шага 0..1 (stride / длина шага rig'а), удобно для `Math.sin(TAU * phase)`. */
+	phase: number;
+	/** Номер экземпляра — чтобы стадо двигалось не в ногу. */
+	index: number;
+}
+
+export type LimbFn = (s: LimbState) => readonly [number, number, number];
+
+export interface LimbsOptions {
+	/** Части и их повороты в градусах [x, y, z] как функция состояния. */
+	parts: Record<string, LimbFn>;
+	/** true — эти части не получают встроенную походку (только своё движение). */
+	replace?: boolean;
+	/** Длина шага для `phase`; по умолчанию — из rig'а (подставляет рантайм). */
+	stride?: number;
+}
+
+/**
+ * Анимация отдельных частей rig'а: помахать рукой, вилять хвостом, извивать змею, бить
+ * крыльями дракона. Работает с любым скелетом; у `custom` — единственный источник движения
+ * частей. Ставь после поведений движения (walkPath, wander…), чтобы видеть их походку.
+ * Функции — только от состояния (детерминизм), без Math.random.
+ */
+export function limbs(options: LimbsOptions | Record<string, LimbFn>): Behaviour {
+	const opts: LimbsOptions =
+		'parts' in options && typeof options.parts === 'object'
+			? (options as LimbsOptions)
+			: { parts: options as Record<string, LimbFn> };
+	for (const [name, fn] of Object.entries(opts.parts)) {
+		if (typeof fn !== 'function') throw new Error(`limbs: у части "${name}" не функция`);
+	}
+	return {
+		kind: 'limbs',
+		positional: false,
+		create: (ctx) => (pose, t) => {
+			const strideLength = opts.stride ?? pose.strideLength;
+			const state: LimbState = {
+				t,
+				gait: pose.gait,
+				stride: pose.stride,
+				phase: (((pose.stride / strideLength) % 1) + 1) % 1,
+				index: ctx.index,
+			};
+			for (const [name, fn] of Object.entries(opts.parts)) {
+				const [x, y, z] = fn(state);
+				const prev = pose.parts[name] ?? [0, 0, 0];
+				pose.parts[name] = [prev[0] + toRadians(x), prev[1] + toRadians(y), prev[2] + toRadians(z)];
+				if (opts.replace) pose.replace.add(name);
+			}
+		},
+	};
+}

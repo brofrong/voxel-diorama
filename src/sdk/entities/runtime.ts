@@ -85,6 +85,7 @@ export function createEntityRuntime(
 			throw new Error(`слишком много частей сущностей: больше ${ENTITY_LIMITS.parts}`);
 		}
 		const rigDef = e.rig;
+		const partIndex = new Map((rigDef?.parts ?? []).map((part, i) => [part.name, i]));
 		const yaw = toRadians(e.rotate);
 		for (let i = 0; i < e.count; i++) {
 			const ctx: BehaviourContext = {
@@ -111,9 +112,21 @@ export function createEntityRuntime(
 						? [base.position[0], base.position[1], base.position[2]]
 						: [0, 0, 0];
 					if (base?.grounded) position[1] = options.groundAt(position[0], position[2]);
-					const pose: Pose = { position, rotation: [0, yaw, 0], gait: 'idle', stride: 0 };
+					const pose: Pose = {
+						position,
+						rotation: [0, yaw, 0],
+						gait: 'idle',
+						stride: 0,
+						strideLength: rigDef?.strideLength ?? 1,
+						parts: {},
+						replace: new Set(),
+					};
 					for (const fn of fns) fn(pose, t);
+					const limbNames = Object.keys(pose.parts);
 					if (!rigDef) {
+						if (limbNames.length > 0) {
+							throw new Error(`limbs: у модели нет частей — нужен rig (${limbNames.join(', ')})`);
+						}
 						return {
 							position: pose.position,
 							rotation: pose.rotation,
@@ -122,6 +135,17 @@ export function createEntityRuntime(
 						};
 					}
 					const rp = poseRig(rigDef, pose.gait, pose.stride, t);
+					for (const name of limbNames) {
+						const i = partIndex.get(name);
+						if (i === undefined) {
+							throw new Error(
+								`limbs: у rig нет части "${name}". Есть: ${[...partIndex.keys()].join(', ')}`,
+							);
+						}
+						const [x, y, z] = pose.parts[name];
+						const base = pose.replace.has(name) ? [0, 0, 0] : rp.parts[i];
+						rp.parts[i] = [base[0] + x, base[1] + y, base[2] + z];
+					}
 					return {
 						position: pose.position,
 						rotation: pose.rotation,

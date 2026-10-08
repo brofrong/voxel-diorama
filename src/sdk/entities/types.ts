@@ -13,6 +13,15 @@ export interface Pose {
 	gait: Gait;
 	/** Пройденное расстояние — фаза шага rig'а. */
 	stride: number;
+	/** Длина шага rig'а (ед. мира); у моделей — 1. Только для чтения. */
+	readonly strideLength: number;
+	/**
+	 * Повороты частей rig'а (радианы, Euler XYZ) по имени части — их задаёт `limbs()`.
+	 * Прибавляются к встроенной походке; части из `replace` её заменяют.
+	 */
+	parts: Record<string, Vec3>;
+	/** Части, у которых встроенная походка выключена (`limbs({ …, replace: true })`). */
+	replace: Set<string>;
 }
 
 export interface BehaviourContext {

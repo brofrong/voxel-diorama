@@ -14,7 +14,15 @@ const ctx = (over: Partial<BehaviourContext> = {}): BehaviourContext => ({
 	},
 	...over,
 });
-const blank = (): Pose => ({ position: [0, 0, 0], rotation: [0, 0, 0], gait: 'idle', stride: 0 });
+const blank = (): Pose => ({
+	position: [0, 0, 0],
+	rotation: [0, 0, 0],
+	gait: 'idle',
+	stride: 0,
+	strideLength: 1,
+	parts: {},
+	replace: new Set(),
+});
 const at = (fn: PoseFn, t: number): Pose => {
 	const pose = blank();
 	fn(pose, t);

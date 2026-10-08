@@ -3,6 +3,10 @@ export {
 	custom,
 	type Keyframe,
 	keyframes,
+	type LimbFn,
+	type LimbState,
+	type LimbsOptions,
+	limbs,
 	type OrbitOptions,
 	orbit,
 	spin,
@@ -11,6 +15,7 @@ export {
 export { checkEntities, type EntityStats, entityWarnings } from './check.ts';
 export { type WalkPathOptions, walkPath } from './path.ts';
 export {
+	CUSTOM_RIG_MAX_PARTS,
 	poseRig,
 	type Rig,
 	type RigOptions,

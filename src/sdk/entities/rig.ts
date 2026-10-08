@@ -2,7 +2,12 @@ import type { Vec3 } from '../../engine/types.ts';
 import type { Model } from '../builder/model.ts';
 import { type Gait, TAU, toRadians } from './types.ts';
 
-export type Skeleton = 'biped' | 'quadruped' | 'bird';
+/**
+ * `biped`/`quadruped`/`bird` — фиксированные части и встроенная походка.
+ * `custom` — любые части и иерархия (змея, паук, дракон, робот); движение частей задаёт
+ * поведение `limbs()`.
+ */
+export type Skeleton = 'biped' | 'quadruped' | 'bird' | 'custom';
 
 export interface RigPartInput {
 	model: Model;
@@ -16,8 +21,19 @@ export interface RigOptions {
 	skeleton: Skeleton;
 	/** Размер вокселя частей в единицах мира; переопределяет scale моделей. */
 	scale?: number;
+	/** Корень и его части: у корня нет parent, у остальных — parent и at. */
 	parts: Record<string, RigPartInput>;
+	/**
+	 * Длина шага в единицах мира (фаза `stride` для `limbs`). У встроенных скелетов — 2 длины
+	 * ноги; у `custom` по умолчанию — 2 высоты корня над землёй.
+	 */
+	stride?: number;
 }
+
+/** Имя части свободного скелета: латиница с маленькой буквы. */
+const PART_NAME_RE = /^[a-z][a-zA-Z0-9_-]*$/;
+/** Частей в одном свободном скелете. */
+export const CUSTOM_RIG_MAX_PARTS = 48;
 
 export interface RigPart {
 	name: string;
@@ -32,7 +48,7 @@ export interface Rig {
 	readonly kind: 'rig';
 	readonly skeleton: Skeleton;
 	readonly scale: number;
-	/** Части от корня к листьям (родитель всегда раньше ребёнка). */
+	/** Части от корня к листьям (родитель всегда раньше ребёнка). Корень — `parts[0]`. */
 	readonly parts: readonly RigPart[];
 	/** На сколько поднять pivot корня, чтобы нижний воксель в покое стоял на y позы. */
 	readonly rootLift: number;
@@ -44,12 +60,14 @@ const REQUIRED: Record<Skeleton, readonly string[]> = {
 	biped: ['body', 'head', 'armL', 'armR', 'legL', 'legR'],
 	quadruped: ['body', 'head', 'legFL', 'legFR', 'legBL', 'legBR'],
 	bird: ['body', 'wingL', 'wingR'],
+	custom: [],
 };
 
 const OPTIONAL: Record<Skeleton, readonly string[]> = {
 	biped: [],
 	quadruped: ['tail'],
 	bird: ['head', 'tail'],
+	custom: [],
 };
 
 export function isRig(value: unknown): value is Rig {
@@ -65,21 +83,41 @@ export function rig(options: RigOptions): Rig {
 		throw new Error(`rig: scale должен быть в (0, 1], получено ${scale}`);
 	}
 	const names = Object.keys(parts);
-	const allowed = [...REQUIRED[skeleton], ...OPTIONAL[skeleton]];
-	for (const name of names) {
-		if (!allowed.includes(name)) {
+	let root = 'body';
+	if (skeleton === 'custom') {
+		if (names.length === 0) throw new Error('rig custom: нет ни одной части');
+		if (names.length > CUSTOM_RIG_MAX_PARTS) {
+			throw new Error(`rig custom: частей ${names.length} (максимум ${CUSTOM_RIG_MAX_PARTS})`);
+		}
+		for (const name of names) {
+			if (!PART_NAME_RE.test(name)) {
+				throw new Error(`rig custom: имя части "${name}" — латиница с маленькой буквы`);
+			}
+		}
+		const roots = names.filter((n) => parts[n].parent === undefined);
+		if (roots.length !== 1) {
 			throw new Error(
-				`rig ${skeleton}: неизвестная часть "${name}". Допустимы: ${allowed.join(', ')}`,
+				`rig custom: нужен ровно один корень (часть без parent), найдено: ${roots.join(', ') || 'ни одного'}`,
 			);
 		}
+		root = roots[0];
+	} else {
+		const allowed = [...REQUIRED[skeleton], ...OPTIONAL[skeleton]];
+		for (const name of names) {
+			if (!allowed.includes(name)) {
+				throw new Error(
+					`rig ${skeleton}: неизвестная часть "${name}". Допустимы: ${allowed.join(', ')} (или skeleton: 'custom')`,
+				);
+			}
+		}
+		for (const name of REQUIRED[skeleton]) {
+			if (!(name in parts)) throw new Error(`rig ${skeleton}: нет части "${name}"`);
+		}
+		if (parts.body.parent !== undefined)
+			throw new Error('rig: body — корень, у него не должно быть parent');
 	}
-	for (const name of REQUIRED[skeleton]) {
-		if (!(name in parts)) throw new Error(`rig ${skeleton}: нет части "${name}"`);
-	}
-	if (parts.body.parent !== undefined)
-		throw new Error('rig: body — корень, у него не должно быть parent');
 	for (const name of names) {
-		if (name === 'body') continue;
+		if (name === root) continue;
 		const part = parts[name];
 		if (part.parent === undefined) {
 			throw new Error(`rig: у части "${name}" нет parent`);
@@ -90,7 +128,7 @@ export function rig(options: RigOptions): Rig {
 		if (!part.at) throw new Error(`rig: у части "${name}" нет at (точки крепления)`);
 	}
 
-	const order = ['body'];
+	const order = [root];
 	const placed = new Set(order);
 	let progress = true;
 	while (order.length < names.length && progress) {
@@ -143,13 +181,19 @@ export function rig(options: RigOptions): Rig {
 
 	const legName = skeleton === 'biped' ? 'legL' : skeleton === 'quadruped' ? 'legFL' : 'body';
 	const leg = rigParts.find((p) => p.name === legName) ?? rigParts[0];
+	const stride =
+		options.stride ??
+		(skeleton === 'custom' ? Math.max(2 * -minY, scale * 2) : 2 * leg.model.size[1] * scale);
+	if (!(Number.isFinite(stride) && stride > 0)) {
+		throw new Error(`rig: stride должен быть > 0, получено ${stride}`);
+	}
 	return {
 		kind: 'rig',
 		skeleton,
 		scale,
 		parts: rigParts,
 		rootLift: -minY,
-		strideLength: 2 * leg.model.size[1] * scale,
+		strideLength: stride,
 	};
 }
 

@@ -115,3 +115,51 @@ describe('poseRig', () => {
 		expect(pose.parts[index(b, 'wingR')][2]).toBeCloseTo(-toRadians(60), 6);
 	});
 });
+
+describe('rig custom', () => {
+	const part = () => block([2, 2, 2], [1, 0, 1]);
+
+	test('любые имена и корень, порядок от корня, stride по умолчанию — 2 высоты корня', () => {
+		const r = rig({
+			skeleton: 'custom',
+			scale: 0.5,
+			parts: {
+				tail: { model: part(), parent: 'torso', at: [1, 1, 0] },
+				torso: { model: part() },
+				legA: { model: limb(), parent: 'torso', at: [0, 0, 1] },
+			},
+		});
+		expect(r.parts[0].name).toBe('torso');
+		expect(r.parts.map((p) => p.name).sort()).toEqual(['legA', 'tail', 'torso']);
+		expect(r.strideLength).toBeCloseTo(2 * r.rootLift, 6);
+		expect(
+			rig({ skeleton: 'custom', parts: { a: { model: part() } }, stride: 3 }).strideLength,
+		).toBe(3);
+	});
+
+	test('встроенной походки нет: все повороты нулевые', () => {
+		const r = rig({ skeleton: 'custom', parts: { a: { model: part() } } });
+		expect(poseRig(r, 'walk', 1.3, 2).parts).toEqual([[0, 0, 0]]);
+	});
+
+	test('понятные ошибки', () => {
+		const p = part();
+		expect(() => rig({ skeleton: 'custom', parts: {} })).toThrow('нет ни одной части');
+		expect(() => rig({ skeleton: 'custom', parts: { a: { model: p }, b: { model: p } } })).toThrow(
+			'ровно один корень',
+		);
+		expect(() => rig({ skeleton: 'custom', parts: { Bad: { model: p } } })).toThrow('латиница');
+		expect(() =>
+			rig({
+				skeleton: 'custom',
+				parts: { a: { model: p }, b: { model: p, parent: 'zz', at: [0, 0, 0] } },
+			}),
+		).toThrow('неизвестный parent');
+		expect(() =>
+			rig({
+				skeleton: 'biped',
+				parts: { ...bipedParts(), tail: { model: p, parent: 'body', at: [0, 0, 0] } },
+			}),
+		).toThrow("skeleton: 'custom'");
+	});
+});
