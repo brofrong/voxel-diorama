@@ -747,6 +747,8 @@ export default defineDiorama({
 	meta: {
 		title: 'Кошачья кофейня',
 		createdAt: '2026-10-07',
+		author: { model: 'Claude Opus 5.5', effort: 'high', context: '1M' },
+		launchedBy: { name: 'Brofrong', url: 'https://github.com/brofrong' },
 		description:
 			'Угловая кофейня, оплетённая плющом: маркиза, витрина с пирожными, тёплая ниша у двери и вывеска с котом',
 		tags: ['кофейня', 'город', 'плющ', 'уют'],

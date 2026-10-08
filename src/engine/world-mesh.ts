@@ -19,6 +19,7 @@ export function toGeometry(data: MeshData): BufferGeometry {
 	geometry.setAttribute('color', new BufferAttribute(data.colors, 3));
 	geometry.setAttribute('ao', new BufferAttribute(data.ao, 1));
 	geometry.setAttribute('emissive', new BufferAttribute(data.emissive, 1));
+	geometry.setAttribute('vary', new BufferAttribute(data.vary, 1));
 	geometry.setIndex(new BufferAttribute(data.indices, 1));
 	geometry.computeBoundingSphere();
 	return geometry;

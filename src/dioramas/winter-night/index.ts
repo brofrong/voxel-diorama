@@ -20,6 +20,8 @@ export default defineDiorama({
 	meta: {
 		title: 'Зимняя ночь',
 		createdAt: '2026-10-07',
+		author: { model: 'Claude Opus 5.5', effort: 'high', context: '1M' },
+		launchedBy: { name: 'Brofrong', url: 'https://github.com/brofrong' },
 		description: 'Заснеженная деревня: дым из труб, фонари, костёр с жителями и замёрзший пруд',
 		tags: ['зима', 'ночь', 'деревня', 'костёр'],
 	},

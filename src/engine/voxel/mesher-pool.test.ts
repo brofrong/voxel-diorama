@@ -3,7 +3,7 @@ import { PAD_VOLUME, padIndex } from './constants.ts';
 import { MesherPool } from './mesher-pool.ts';
 import { buildPaletteLUT } from './palette.ts';
 
-const lut = buildPaletteLUT([{ color: '#ff0000', emissive: 0, kind: 'solid' }]);
+const lut = buildPaletteLUT([{ color: '#ff0000', emissive: 0, kind: 'solid', vary: 0 }]);
 
 function singleVoxel(): Uint8Array {
 	const p = new Uint8Array(PAD_VOLUME);

@@ -10,7 +10,12 @@ import {
 } from './schema.ts';
 
 const minimal = (): DioramaInput => ({
-	meta: { title: 'Тест', createdAt: '2026-10-06' },
+	meta: {
+		title: 'Тест',
+		createdAt: '2026-10-06',
+		author: { model: 'Тестовая модель' },
+		launchedBy: { name: 'Тест', url: 'https://example.com' },
+	},
 	size: [64, 32, 48],
 	palette: { grass: '#6aa84f' },
 	build() {},
@@ -27,9 +32,12 @@ describe('defineDiorama', () => {
 			time: { start: 13, speed: 0, cycle: 120 },
 			sky: { kind: 'gradient' },
 			fog: 0,
+			haze: 0.5,
+			backdrop: { clouds: 0, mountains: 0, cloudSea: false },
 		});
+		expect(d.camera.tiltShift).toBe(0);
 		expect(d.camera.autoRotate).toBe(true);
-		expect(d.palette.grass).toEqual({ color: '#6aa84f', emissive: 0, kind: 'solid' });
+		expect(d.palette.grass).toEqual({ color: '#6aa84f', emissive: 0, kind: 'solid', vary: 0.06 });
 	});
 
 	test('неверное время — понятная ошибка', () => {
@@ -67,10 +75,62 @@ describe('defineDiorama', () => {
 		expect(() => defineDiorama(bad)).toThrow('particles: ожидается');
 	});
 
+	test('дымка, задник и tilt-shift: доходят до SceneConfig, мусор — ошибка', () => {
+		const scene = toSceneConfig(
+			defineDiorama({
+				...minimal(),
+				atmosphere: { haze: 0.8, backdrop: { clouds: 0.5, cloudSea: true } },
+				camera: { tiltShift: 0.4 },
+			}),
+		);
+		expect(scene.haze).toBe(0.8);
+		expect(scene.backdrop).toEqual({ clouds: 0.5, mountains: 0, cloudSea: true });
+		expect(scene.camera.tiltShift).toBe(0.4);
+		const bad = (atmosphere: unknown) =>
+			defineDiorama({ ...minimal(), atmosphere } as unknown as DioramaInput);
+		expect(() => bad({ haze: 2 })).toThrow(DioramaValidationError);
+		expect(() => bad({ backdrop: { clouds: 0.5, birds: 1 } })).toThrow('birds');
+		expect(() => bad({ backdrop: { mountainColor: 'blue' } })).toThrow('#rrggbb');
+	});
+
 	test('несуществующая дата отвергается', () => {
 		expect(() =>
-			defineDiorama({ ...minimal(), meta: { title: 'X', createdAt: '2026-13-45' } }),
+			defineDiorama({
+				...minimal(),
+				meta: {
+					title: 'X',
+					createdAt: '2026-13-45',
+					author: { model: 'M' },
+					launchedBy: { name: 'Тест', url: 'https://example.com' },
+				},
+			}),
 		).toThrow(DioramaValidationError);
+	});
+
+	test('автор обязателен: без него и с пустой моделью — понятная ошибка', () => {
+		const noAuthor = {
+			...minimal(),
+			meta: { title: 'X', createdAt: '2026-10-08' },
+		} as unknown as DioramaInput;
+		expect(() => defineDiorama(noAuthor)).toThrow('какая ИИ сделала диораму');
+		const emptyModel = { ...minimal(), meta: { ...minimal().meta, author: { model: ' ' } } };
+		expect(() => defineDiorama(emptyModel)).toThrow('укажи модель');
+		expect(defineDiorama(minimal()).meta.author).toEqual({ model: 'Тестовая модель' });
+	});
+
+	test('кто запускал модель обязателен, ссылка — только https', () => {
+		const { launchedBy: _, ...meta } = minimal().meta;
+		const missing = { ...minimal(), meta } as unknown as DioramaInput;
+		expect(() => defineDiorama(missing)).toThrow('кто запускал модель');
+		const badUrl = {
+			...minimal(),
+			meta: { ...minimal().meta, launchedBy: { name: 'X', url: 'javascript:alert(1)' } },
+		};
+		expect(() => defineDiorama(badUrl)).toThrow('https://');
+		expect(defineDiorama(minimal()).meta.launchedBy).toEqual({
+			name: 'Тест',
+			url: 'https://example.com',
+		});
 	});
 
 	test('размер мира — целые 1..1024', () => {

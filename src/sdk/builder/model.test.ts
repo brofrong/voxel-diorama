@@ -62,7 +62,7 @@ describe('примитивы на ModelBuilder', () => {
 			() => {},
 		);
 		expect(m.materials).toEqual([
-			{ name: 'glow', material: { color: '#ffd27a', emissive: 1, kind: 'solid' } },
+			{ name: 'glow', material: { color: '#ffd27a', emissive: 1, kind: 'solid', vary: 0.06 } },
 		]);
 	});
 });
@@ -99,10 +99,23 @@ describe('scale, pivot, anchors', () => {
 
 describe('normalizeMaterial', () => {
 	test('строка → solid без свечения', () => {
-		expect(normalizeMaterial('#AABBCC')).toEqual({ color: '#aabbcc', emissive: 0, kind: 'solid' });
+		expect(normalizeMaterial('#AABBCC')).toEqual({
+			color: '#aabbcc',
+			emissive: 0,
+			kind: 'solid',
+			vary: 0.06,
+		});
 	});
 
 	test('неверный цвет → ошибка', () => {
 		expect(() => normalizeMaterial('red')).toThrow('#rrggbb');
+	});
+
+	test('vary: по умолчанию только у solid, явное значение сохраняется, вне 0..0.5 — ошибка', () => {
+		expect(normalizeMaterial({ color: '#336699', kind: 'water' }).vary).toBe(0);
+		expect(normalizeMaterial({ color: '#336699', kind: 'glass' }).vary).toBe(0);
+		expect(normalizeMaterial({ color: '#336699', vary: 0 }).vary).toBe(0);
+		expect(normalizeMaterial({ color: '#336699', vary: 0.2 }).vary).toBe(0.2);
+		expect(() => normalizeMaterial({ color: '#336699', vary: 0.8 })).toThrow('vary');
 	});
 });

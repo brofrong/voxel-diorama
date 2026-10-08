@@ -87,6 +87,12 @@ export class ModelBuilder extends VoxelCanvas {
 		this.data[modelIndex(this.size, x, y, z)] = index;
 	}
 
+	protected read(x: number, y: number, z: number): number {
+		const [sx, sy, sz] = this.size;
+		if (x < 0 || y < 0 || z < 0 || x >= sx || y >= sy || z >= sz) return 0;
+		return this.data[modelIndex(this.size, x, y, z)];
+	}
+
 	protected resolve(material: string): number {
 		if (material === AIR) return 0;
 		const i = this.names.indexOf(material);

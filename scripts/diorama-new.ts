@@ -30,6 +30,10 @@ export default defineDiorama({
 	meta: {
 		title: ${JSON.stringify(title)},
 		createdAt: '${today()}',
+		// Обязательно: какая ИИ делает диораму. effort/context — если известны, иначе убери поле.
+		author: { model: '', effort: '', context: '' },
+		// Обязательно: кто запускал модель — имя и https-ссылка на соцсеть/GitHub (см. CLAUDE.md).
+		launchedBy: { name: '', url: '' },
 		description: '',
 		tags: [],
 	},
@@ -50,4 +54,6 @@ export default defineDiorama({
 mkdirSync(dir, { recursive: true });
 const file = join(dir, 'index.ts');
 writeFileSync(file, source);
-console.log(`Создано ${relative(ROOT, file)}\nДальше: bun run diorama:check ${slug}`);
+console.log(
+	`Создано ${relative(ROOT, file)}\nЗаполни meta.author (какая ИИ делает диораму) и meta.launchedBy (кто её запустил), затем: bun run diorama:check ${slug}`,
+);

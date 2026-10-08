@@ -10,6 +10,8 @@ export interface MeshData {
 	/** Яркость вершины 0..1 (ambient occlusion). */
 	ao: Float32Array;
 	emissive: Float32Array;
+	/** Разброс оттенка материала (см. `Material.vary`); сам шум считает шейдер. */
+	vary: Float32Array;
 	indices: Uint32Array;
 }
 
@@ -28,10 +30,18 @@ class MeshBuilder {
 	private readonly colors: number[] = [];
 	private readonly ao: number[] = [];
 	private readonly emissive: number[] = [];
+	private readonly vary: number[] = [];
 	private readonly indices: number[] = [];
 	private vertexCount = 0;
 
-	pushQuad(corners: Vec3[], normal: Vec3, color: Vec3, emissive: number, ao: number[]): void {
+	pushQuad(
+		corners: Vec3[],
+		normal: Vec3,
+		color: Vec3,
+		emissive: number,
+		vary: number,
+		ao: number[],
+	): void {
 		const base = this.vertexCount;
 		for (let k = 0; k < 4; k++) {
 			this.positions.push(corners[k][0], corners[k][1], corners[k][2]);
@@ -39,6 +49,7 @@ class MeshBuilder {
 			this.colors.push(color[0], color[1], color[2]);
 			this.ao.push(ao[k]);
 			this.emissive.push(emissive);
+			this.vary.push(vary);
 		}
 		// Диагональ через более светлые вершины — иначе AO даёт заметную анизотропию.
 		if (ao[0] + ao[2] < ao[1] + ao[3]) {
@@ -57,6 +68,7 @@ class MeshBuilder {
 			colors: new Float32Array(this.colors),
 			ao: new Float32Array(this.ao),
 			emissive: new Float32Array(this.emissive),
+			vary: new Float32Array(this.vary),
 			indices: new Uint32Array(this.indices),
 		};
 	}
@@ -177,6 +189,7 @@ export function meshChunk(padded: Uint8Array, lut: PaletteLUT, origin: Vec3): Ch
 							normal,
 							color,
 							lut.emissive[material],
+							lut.vary[material],
 							aoValues,
 						);
 
@@ -204,6 +217,7 @@ export function meshTransferables(mesh: ChunkMesh): ArrayBuffer[] {
 			data.colors,
 			data.ao,
 			data.emissive,
+			data.vary,
 			data.indices,
 		]) {
 			out.push(arr.buffer as ArrayBuffer);

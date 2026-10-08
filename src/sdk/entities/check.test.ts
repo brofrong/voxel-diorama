@@ -10,7 +10,12 @@ const box = model({ size: [1, 1, 1], palette: { c: '#ffffff' } }, (m) => m.set([
 
 const diorama = (entities: DioramaInput['entities']) =>
 	defineDiorama({
-		meta: { title: 'Проверка', createdAt: '2026-10-07' },
+		meta: {
+			title: 'Проверка',
+			createdAt: '2026-10-07',
+			author: { model: 'Тест' },
+			launchedBy: { name: 'Тест', url: 'https://example.com' },
+		},
 		size: [16, 8, 16],
 		palette: { grass: '#6aa84f' },
 		build(w) {

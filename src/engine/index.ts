@@ -97,6 +97,8 @@ export interface DioramaController {
 	reloadWorld(url: string, entities?: EntityFactory, atmosphere?: AtmosphereFactory): Promise<void>;
 	setParticles(on: boolean): void;
 	setAutoRotate(on: boolean): void;
+	/** Ракурс: азимут и наклон в градусах, zoom — множитель расстояния (1 — как в диораме). */
+	setView(view: { azimuth: number; elevation: number; zoom?: number }): void;
 	/** Пересоздать сущности на текущем мире. */
 	setEntities(factory: EntityFactory | undefined): void;
 	/** Кадров в секунду (0 — на паузе или до первого замера). */
@@ -118,7 +120,9 @@ export async function mountDiorama(
 	const materials = createWorldMaterials(uniforms);
 	const capture = options.fixedTime !== undefined;
 	const clock = new DayClock(config.time);
-	const currentHour = (): number => (capture ? config.time.start : clock.hour);
+	// В режиме скриншота часы не идут (advance не вызывается) — час стоит на time.start,
+	// пока его явно не сменят через setHour (ревью ночного кадра).
+	const currentHour = (): number => clock.hour;
 	const caps: DeviceCaps = {
 		backend: backendName(renderer),
 		cores: navigator.hardwareConcurrency || 4,
@@ -154,6 +158,13 @@ export async function mountDiorama(
 	// Кадр карточки не двигается с клавиатуры.
 	const fly = capture ? null : new FlyInput(window);
 	const fps = new FpsMeter();
+	// В режиме скриншота сцена статична: кадр рисуется, только когда что-то поменялось
+	// (камера, настройки, мир). Иначе слабая (программная) графика захлёбывается.
+	let dirty = true;
+	const invalidate = (): void => {
+		dirty = true;
+	};
+	stage.controls.addEventListener('change', invalidate);
 
 	const frame = (): void => {
 		uniforms.time.value = animTime;
@@ -167,6 +178,7 @@ export async function mountDiorama(
 	// Когда анимационный цикл не крутится (пауза/скрытая вкладка), setSize и
 	// изменение времени суток сами по себе не перерисовывают кадр — дорисовываем вручную.
 	const redrawIfIdle = (): void => {
+		invalidate();
 		if (!disposed && (userPaused || document.hidden)) frame();
 	};
 
@@ -179,6 +191,12 @@ export async function mountDiorama(
 	resize();
 
 	const loop = (): void => {
+		if (capture) {
+			if (!dirty) return;
+			dirty = false;
+			frame();
+			return;
+		}
 		const now = performance.now();
 		const raw = Math.max(0, (now - lastFrame) / 1000);
 		const dt = Math.min(0.1, raw);
@@ -265,7 +283,10 @@ export async function mountDiorama(
 		pool = meshPool;
 		const target = progressive ? stage.world : new Group();
 		try {
-			await meshWorld(world, meshPool, target, materials, (f) => report?.(0.5 + 0.5 * f));
+			await meshWorld(world, meshPool, target, materials, (f) => {
+				invalidate();
+				report?.(0.5 + 0.5 * f);
+			});
 		} finally {
 			// Воркеры нужны только на время мешинга.
 			meshPool.dispose();
@@ -281,6 +302,7 @@ export async function mountDiorama(
 		if (disposed) return;
 		disposed = true;
 		void renderer.setAnimationLoop(null);
+		stage.controls.removeEventListener('change', invalidate);
 		fly?.dispose();
 		observer.disconnect();
 		document.removeEventListener('visibilitychange', syncLoop);
@@ -334,6 +356,10 @@ export async function mountDiorama(
 		getQuality: () => ({ setting: qualitySetting, effective: stage.quality }),
 		setAutoRotate(on) {
 			stage.setAutoRotate(on);
+		},
+		setView({ azimuth, elevation, zoom }) {
+			stage.setView(azimuth, elevation, zoom);
+			redrawIfIdle();
 		},
 		setParticles(on) {
 			particlesEnabled = on;

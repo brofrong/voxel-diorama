@@ -4,10 +4,11 @@ import { type MeshData, meshChunk } from './mesher.ts';
 import { buildPaletteLUT } from './palette.ts';
 
 const lut = buildPaletteLUT([
-	{ color: '#ff0000', emissive: 0, kind: 'solid' }, // 1
-	{ color: '#00ff00', emissive: 0, kind: 'solid' }, // 2
-	{ color: '#0000ff', emissive: 0, kind: 'water' }, // 3
-	{ color: '#ffffff', emissive: 2, kind: 'solid' }, // 4
+	{ color: '#ff0000', emissive: 0, kind: 'solid', vary: 0 }, // 1
+	{ color: '#00ff00', emissive: 0, kind: 'solid', vary: 0 }, // 2
+	{ color: '#0000ff', emissive: 0, kind: 'water', vary: 0 }, // 3
+	{ color: '#ffffff', emissive: 2, kind: 'solid', vary: 0 }, // 4
+	{ color: '#ffffff', emissive: 0, kind: 'solid', vary: 0.2 }, // 5
 ]);
 
 function padded(voxels: Array<[number, number, number, number]>): Uint8Array {
@@ -140,5 +141,19 @@ describe('meshChunk', () => {
 	test('emissive переносится в атрибут', () => {
 		const m = meshChunk(padded([[0, 0, 0, 4]]), lut, [0, 0, 0]).opaque;
 		expect(m?.emissive.every((e) => e === 2)).toBe(true);
+	});
+
+	test('vary переносится в атрибут и не мешает слиянию', () => {
+		const row = meshChunk(
+			padded([
+				[0, 0, 0, 5],
+				[1, 0, 0, 5],
+			]),
+			lut,
+			[0, 0, 0],
+		).opaque;
+		expect(quads(row)).toBe(6);
+		expect(row?.vary.length).toBe(24);
+		expect(row?.vary.every((v) => Math.abs(v - 0.2) < 1e-6)).toBe(true);
 	});
 });

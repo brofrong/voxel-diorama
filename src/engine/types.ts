@@ -26,6 +26,8 @@ export interface Material {
 	/** Сила свечения (0 — не светится). */
 	emissive: number;
 	kind: MaterialKind;
+	/** Разброс оттенка между соседними вокселями: 0 — ровный цвет, 0.1 — заметно «живой». */
+	vary: number;
 }
 
 export interface CameraConfig {
@@ -34,6 +36,20 @@ export interface CameraConfig {
 	autoRotate: boolean;
 	minDistance: number;
 	maxDistance: number;
+	/** 0..1 — размытие верха и низа кадра (эффект миниатюры). */
+	tiltShift: number;
+}
+
+/** Задник вокруг диорамы: объёмные облака, горы на горизонте, облачное море внизу. */
+export interface BackdropConfig {
+	/** 0..1 — сколько воксельных облаков вокруг (0 — нет). */
+	clouds: number;
+	/** 0..1 — высота и плотность гор на горизонте (0 — нет). */
+	mountains: number;
+	/** Облачное «море» под диорамой — для парящих островов. */
+	cloudSea: boolean;
+	/** Цвет гор; по умолчанию холодный серо-синий. */
+	mountainColor?: string;
 }
 
 /** Всё, что движку нужно знать о диораме помимо вокселей. Сериализуемо (идёт из prerender). */
@@ -44,6 +60,9 @@ export interface SceneConfig {
 	/** Seed диорамы — для звёзд и облаков неба. */
 	seed: number;
 	fog: number;
+	/** 0..1 — воздушная перспектива: дальнее и то, что ниже диорамы, тонет в цвете неба. */
+	haze: number;
+	backdrop: BackdropConfig;
 	camera: CameraConfig;
 	base: BaseStyle;
 	/** Время анимации (с), на котором замирает режим скриншота `?capture`. */

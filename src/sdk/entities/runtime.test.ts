@@ -28,7 +28,12 @@ const box = block([2, 2, 2], [1, 0, 1]);
 
 const entitiesOf = (entities: DioramaInput['entities']) =>
 	defineDiorama({
-		meta: { title: 'Т', createdAt: '2026-10-07' },
+		meta: {
+			title: 'Т',
+			createdAt: '2026-10-07',
+			author: { model: 'Тест' },
+			launchedBy: { name: 'Тест', url: 'https://example.com' },
+		},
 		size: [32, 16, 32],
 		palette: { c: '#ffffff' },
 		build() {},

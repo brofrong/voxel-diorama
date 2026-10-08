@@ -3,7 +3,11 @@ import {
 	cos,
 	dot,
 	float,
+	floor,
+	hash,
+	max,
 	mix,
+	mx_noise_float,
 	normalize,
 	normalLocal,
 	normalView,
@@ -27,6 +31,27 @@ const WAVE_AMPLITUDE = 0.08;
 /** Френель: 0 при взгляде в лоб, 1 по касательной. */
 const fresnel = () => pow(oneMinus(saturate(dot(normalView, positionViewDirection))), 3);
 
+/**
+ * Разброс оттенка между вокселями (`Material.vary`). Шум считается по номеру вокселя под
+ * фрагментом, поэтому жадное слияние граней его не ломает и палитра не тратится на оттенки.
+ * Локальные координаты: у мира это мировые воксели, у сущностей — воксели модели (шум
+ * «приклеен» к модели и не плывёт при анимации).
+ */
+function shadeVariation(color: ReturnType<typeof attribute<'vec3'>>) {
+	const vary = attribute('vary', 'float');
+	// Центр грани сдвигаем на полшага внутрь — попадаем ровно в свой воксель; +4096 — чтобы
+	// отрицательные координаты не ломали беззнаковый хеш.
+	const cell = floor(positionLocal.sub(normalLocal.mul(0.5))).add(4096);
+	const h1 = hash(cell.x.add(hash(cell.y.add(hash(cell.z).mul(65536))).mul(65536)));
+	const h2 = hash(h1.mul(65536).add(17));
+	// Крупные пятна (~10 вокселей), чтобы большие поля не выглядели ровной «рябью».
+	const patch = mx_noise_float(cell.mul(0.09));
+	const shade = max(float(0), float(1).add(vary.mul(h1.sub(0.5).mul(1.6).add(patch.mul(0.9)))));
+	// Тёплый/холодный сдвиг: оттенок «дышит», а не только яркость.
+	const warm = vary.mul(h2.sub(0.5).add(patch.mul(0.4))).mul(0.5);
+	return color.mul(shade).mul(vec3(float(1).add(warm), 1, float(1).sub(warm)));
+}
+
 export function createVoxelMaterial(
 	layer: VoxelLayer,
 	u: AtmosphereUniforms,
@@ -36,7 +61,7 @@ export function createVoxelMaterial(
 		roughness: layer === 'opaque' ? 0.9 : layer === 'water' ? 0.15 : 0.05,
 	});
 	const color = attribute('color', 'vec3');
-	const base = color.mul(attribute('ao', 'float'));
+	const base = shadeVariation(color).mul(attribute('ao', 'float'));
 	material.emissiveNode = color.mul(attribute('emissive', 'float')).mul(u.emissiveScale);
 
 	if (layer === 'opaque') {

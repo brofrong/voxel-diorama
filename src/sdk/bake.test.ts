@@ -5,7 +5,12 @@ import { type DioramaInput, defineDiorama } from './schema.ts';
 
 const valley = (build: DioramaInput['build']) =>
 	defineDiorama({
-		meta: { title: 'Долина', createdAt: '2026-10-06' },
+		meta: {
+			title: 'Долина',
+			createdAt: '2026-10-06',
+			author: { model: 'Тест' },
+			launchedBy: { name: 'Тест', url: 'https://example.com' },
+		},
 		seed: 3,
 		size: [40, 24, 40],
 		palette: { grass: '#6aa84f', dirt: '#7a5a3a', gold: '#ffd700' },

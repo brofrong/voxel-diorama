@@ -7,7 +7,12 @@ import { smoke, snow } from './particles.ts';
 
 const diorama = (extra: Pick<DioramaInput, 'particles' | 'lights'>) =>
 	defineDiorama({
-		meta: { title: 'Проверка', createdAt: '2026-10-07' },
+		meta: {
+			title: 'Проверка',
+			createdAt: '2026-10-07',
+			author: { model: 'Тест' },
+			launchedBy: { name: 'Тест', url: 'https://example.com' },
+		},
 		size: [16, 8, 16],
 		palette: { grass: '#6aa84f' },
 		build(w) {

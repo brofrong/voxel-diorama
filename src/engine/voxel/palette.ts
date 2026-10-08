@@ -19,6 +19,7 @@ export interface PaletteLUT {
 	/** Линейный RGB, по 3 числа на индекс. */
 	colors: Float32Array;
 	emissive: Float32Array;
+	vary: Float32Array;
 }
 
 export function hexToRgb8(hex: string): [number, number, number] {
@@ -41,6 +42,7 @@ export function buildPaletteLUT(materials: readonly Material[]): PaletteLUT {
 	const kinds = new Uint8Array(256);
 	const colors = new Float32Array(256 * 3);
 	const emissive = new Float32Array(256);
+	const vary = new Float32Array(256);
 	materials.forEach((material, i) => {
 		const id = i + 1;
 		const [r, g, b] = hexToRgb8(material.color);
@@ -49,6 +51,7 @@ export function buildPaletteLUT(materials: readonly Material[]): PaletteLUT {
 		colors[id * 3 + 1] = srgbToLinear(g / 255);
 		colors[id * 3 + 2] = srgbToLinear(b / 255);
 		emissive[id] = material.emissive;
+		vary[id] = material.vary;
 	});
-	return { kinds, colors, emissive };
+	return { kinds, colors, emissive, vary };
 }

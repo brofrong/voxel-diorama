@@ -3,7 +3,7 @@ import { CHUNK, CHUNK_VOLUME, MAX_MATERIALS } from './constants.ts';
 import { hexToRgb8, KIND_CODE, KIND_NAME, rgb8ToHex } from './palette.ts';
 import { VoxelWorld } from './world.ts';
 
-export const VXB_VERSION = 2;
+export const VXB_VERSION = 3;
 const MAGIC = [0x56, 0x58, 0x42]; // "VXB"
 
 export class VxbError extends Error {
@@ -112,6 +112,11 @@ async function transform(
 	data: Uint8Array,
 	stream: CompressionStream | DecompressionStream,
 ): Promise<Uint8Array> {
+	// Под Bun сжимаем синхронно: CompressionStream там даёт разные байты для одного и того же
+	// входа от вызова к вызову (зависит от нарезки потока), а запекание должно быть детерминированным.
+	if (stream instanceof CompressionStream && typeof Bun !== 'undefined') {
+		return new Uint8Array(Bun.deflateSync(new Uint8Array(data)));
+	}
 	const response = new Response(new Blob([new Uint8Array(data)]).stream().pipeThrough(stream));
 	return new Uint8Array(await response.arrayBuffer());
 }
@@ -132,6 +137,7 @@ export async function encodeVxb({ world, materials, anchors }: VxbData): Promise
 		w.u8(b);
 		w.u8(KIND_CODE[m.kind]);
 		w.f32(m.emissive);
+		w.f32(m.vary);
 	}
 
 	const chunks = [...world.chunks.values()]
@@ -213,7 +219,8 @@ export async function decodeVxb(input: ArrayBuffer | Uint8Array): Promise<Requir
 		const kind = KIND_NAME[r.u8()];
 		if (!kind) throw new VxbError(`неизвестный вид материала #${i + 1}`);
 		const emissive = Math.round(r.f32() * 1000) / 1000;
-		materials.push({ color, emissive, kind });
+		const vary = Math.round(r.f32() * 1000) / 1000;
+		materials.push({ color, emissive, kind, vary });
 	}
 
 	const world = new VoxelWorld(size);

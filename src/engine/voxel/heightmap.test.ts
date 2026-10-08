@@ -4,8 +4,8 @@ import { buildHeightmap } from './heightmap.ts';
 import { VoxelWorld } from './world.ts';
 
 const materials: Material[] = [
-	{ color: '#6aa84f', emissive: 0, kind: 'solid' },
-	{ color: '#3a7bd5', emissive: 0, kind: 'water' },
+	{ color: '#6aa84f', emissive: 0, kind: 'solid', vary: 0 },
+	{ color: '#3a7bd5', emissive: 0, kind: 'water', vary: 0 },
 ];
 
 test('земля — над верхним твёрдым вокселем, вода не в счёт', () => {
@@ -47,7 +47,10 @@ test('колонки доступны для текстуры высот', () =>
 });
 
 test('поверхность для частиц учитывает воду и стекло, земля для ходоков — нет', () => {
-	const glassy: Material[] = [...materials, { color: '#bfe3f5', emissive: 0, kind: 'glass' }];
+	const glassy: Material[] = [
+		...materials,
+		{ color: '#bfe3f5', emissive: 0, kind: 'glass', vary: 0 },
+	];
 	const world = new VoxelWorld([3, 8, 1]);
 	world.set(0, 2, 0, 1); // твёрдое
 	world.set(1, 2, 0, 1);

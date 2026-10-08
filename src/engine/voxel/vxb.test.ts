@@ -5,9 +5,9 @@ import { decodeVxb, encodeVxb, VXB_VERSION, VxbError } from './vxb.ts';
 import { VoxelWorld } from './world.ts';
 
 const materials: Material[] = [
-	{ color: '#6aa84f', emissive: 0, kind: 'solid' },
-	{ color: '#3a7bd5', emissive: 0, kind: 'water' },
-	{ color: '#ffd27a', emissive: 1.5, kind: 'glass' },
+	{ color: '#6aa84f', emissive: 0, kind: 'solid', vary: 0 },
+	{ color: '#3a7bd5', emissive: 0, kind: 'water', vary: 0 },
+	{ color: '#ffd27a', emissive: 1.5, kind: 'glass', vary: 0.125 },
 ];
 
 describe('vxb', () => {

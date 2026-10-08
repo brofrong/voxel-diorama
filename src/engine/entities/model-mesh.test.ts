@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import type { VoxelModelData } from '../types.ts';
 import { meshModel } from './model-mesh.ts';
 
-const solid = [{ color: '#ffffff', emissive: 0, kind: 'solid' as const }];
+const solid = [{ color: '#ffffff', emissive: 0, kind: 'solid' as const, vary: 0 }];
 
 const quads = (meshes: ReturnType<typeof meshModel>): number =>
 	meshes.reduce((n, m) => n + (m.opaque ? m.opaque.indices.length / 6 : 0), 0);

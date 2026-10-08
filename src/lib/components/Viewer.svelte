@@ -88,6 +88,11 @@
 			setHour: (h) => ctl.setHour(h),
 			setSky: (kind) => ctl.setSky({ kind }),
 			setQuality: (q) => ctl.setQuality(q),
+			setView(azimuth, elevation, zoom) {
+				// Иначе автоповорот сразу уведёт камеру с выбранного ракурса.
+				ctl.setAutoRotate(false);
+				ctl.setView({ azimuth, elevation, zoom });
+			},
 			async saveThumbnail() {
 				const blob = await ctl.captureThumbnail({ width: 1200, height: 800 });
 				const response = await fetch(`/__dev/thumb/${card.slug}`, {

@@ -1,4 +1,5 @@
 import { afterEach, expect, spyOn, test } from 'bun:test';
+import GaussianBlurNode from 'three/addons/tsl/display/GaussianBlurNode.js';
 import { PassNode, PerspectiveCamera, Scene, type WebGPURenderer } from 'three/webgpu';
 import { createPipeline } from './pipeline.ts';
 import { QUALITY_PRESETS } from './quality.ts';
@@ -45,4 +46,16 @@ test('low: без bloom — без лишнего выхода MRT', () => {
 	spies.push(setMRT);
 	createPipeline(fakeRenderer, new Scene(), new PerspectiveCamera(), QUALITY_PRESETS.low);
 	expect(setMRT).not.toHaveBeenCalled();
+});
+
+test('tilt-shift: размытие только на medium+ и освобождается вместе с конвейером', () => {
+	const dispose = spyOn(GaussianBlurNode.prototype, 'dispose');
+	spies.push(dispose);
+	const scene = new Scene();
+	const camera = new PerspectiveCamera();
+	createPipeline(fakeRenderer, scene, camera, QUALITY_PRESETS.low, { tiltShift: 1 }).dispose();
+	createPipeline(fakeRenderer, scene, camera, QUALITY_PRESETS.high, { tiltShift: 0 }).dispose();
+	expect(dispose).not.toHaveBeenCalled();
+	createPipeline(fakeRenderer, scene, camera, QUALITY_PRESETS.medium, { tiltShift: 0.6 }).dispose();
+	expect(dispose).toHaveBeenCalled();
 });

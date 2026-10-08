@@ -7,7 +7,9 @@
 	let { card }: { card: CardData } = $props();
 </script>
 
-<a class="card" href={resolve('/d/[slug]', { slug: card.slug })}>
+<!-- Ссылка на диораму растянута на всю карточку через ::after; ссылка на профиль лежит поверх неё
+     (вложенные <a> недопустимы). -->
+<article class="card">
 	<div class="thumb">
 		{#if card.thumb}
 			<img src={withBase(card.thumb)} alt={card.title} loading="lazy" width="1200" height="800" />
@@ -16,8 +18,15 @@
 		{/if}
 	</div>
 	<div class="body">
-		<h2>{card.title}</h2>
+		<h2><a class="open" href={resolve('/d/[slug]', { slug: card.slug })}>{card.title}</a></h2>
 		<time datetime={card.createdAt}>{formatDate(card.createdAt)}</time>
+		<p class="author">Автор: {card.author}</p>
+		<p class="author">
+			Создал:
+			<a class="profile" href={card.launchedBy.url} target="_blank" rel="noopener noreferrer"
+				>{card.launchedBy.name}</a
+			>
+		</p>
 		{#if card.tags.length > 0}
 			<ul class="tags">
 				{#each card.tags as tag (tag)}
@@ -26,10 +35,11 @@
 			</ul>
 		{/if}
 	</div>
-</a>
+</article>
 
 <style>
 	.card {
+		position: relative;
 		display: block;
 		border-radius: var(--radius);
 		overflow: hidden;
@@ -37,6 +47,30 @@
 		transition:
 			transform 0.2s ease,
 			box-shadow 0.2s ease;
+	}
+	.card:has(.open:focus-visible) {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+	.open {
+		color: inherit;
+		text-decoration: none;
+		outline: none;
+	}
+	.open::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+	}
+	.profile {
+		position: relative;
+		z-index: 1;
+		color: var(--text);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+	.profile:hover {
+		color: var(--accent);
 	}
 	.card:hover {
 		transform: translateY(-3px);
@@ -69,6 +103,11 @@
 	time {
 		color: var(--muted);
 		font-size: 13px;
+	}
+	.author {
+		margin: 4px 0 0;
+		color: var(--muted);
+		font-size: 12px;
 	}
 	.tags {
 		display: flex;

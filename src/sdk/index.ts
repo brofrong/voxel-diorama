@@ -10,21 +10,30 @@ export {
 	SIZE_LIMIT_BYTES,
 	SIZE_WARN_BYTES,
 } from './bake.ts';
+export type { BlobOptions, ConeOptions, CurveOptions, ShadeOptions } from './builder/canvas.ts';
 export { isModel, type Model, ModelBuilder, type ModelOptions, model } from './builder/model.ts';
 export {
+	type FlowersOptions,
+	type GrassOptions,
+	type GrowOptions,
+	type IslandInfo,
+	type IslandOptions,
 	type ModelSource,
+	type MossOptions,
 	type Placed,
 	type PlaceOptions,
 	type Rotation,
 	type ScatterOptions,
 	type TerrainNoise,
 	type TerrainOptions,
+	type VinesOptions,
+	type WaterfallOptions,
 	type WaterOptions,
 	WorldBuilder,
 } from './builder/world-builder.ts';
 export * from './entities/index.ts';
 export type { MaterialInput } from './materials.ts';
-export type { Noise2D } from './noise.ts';
+export type { Noise2D, Noise3D } from './noise.ts';
 export * as prefabs from './prefabs/index.ts';
 export type { Rng } from './rng.ts';
 export {

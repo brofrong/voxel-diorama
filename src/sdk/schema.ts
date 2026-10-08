@@ -18,11 +18,14 @@ import { isModel, type Model } from './builder/model.ts';
 import type { WorldBuilder } from './builder/world-builder.ts';
 import { isRig, type Rig } from './entities/rig.ts';
 import { type Behaviour, isBehaviour, type Point } from './entities/types.ts';
-import { AIR, HEX_COLOR, normalizeMaterial } from './materials.ts';
+import { AIR, HEX_COLOR, MAX_VARY, normalizeMaterial } from './materials.ts';
 
 const hexColor = z.string().regex(HEX_COLOR, 'ожидается цвет в формате #rrggbb');
 const vec3 = z.tuple([z.number(), z.number(), z.number()]);
 const dimension = z.number().int().min(1).max(1024);
+
+/** Воздушная перспектива по умолчанию: заметна на заднике, передний план чистый. */
+export const DEFAULT_HAZE = 0.5;
 
 const materialInput = z.union([
 	hexColor,
@@ -30,6 +33,8 @@ const materialInput = z.union([
 		color: hexColor,
 		emissive: z.number().min(0).max(10).optional(),
 		kind: z.enum(['solid', 'water', 'glass']).optional(),
+		// Разброс оттенка между вокселями; по умолчанию 0.06 у solid, 0 у воды и стекла.
+		vary: z.number().min(0).max(MAX_VARY).optional(),
 	}),
 ]);
 
@@ -94,6 +99,33 @@ export const dioramaSchema = z.strictObject({
 				const d = new Date(`${s}T00:00:00Z`);
 				return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(s);
 			}, 'несуществующая дата'),
+		// Обязательно: кто сделал диораму. Показывается на карточке главной.
+		author: z.strictObject(
+			{
+				model: z.string().trim().min(1, 'укажи модель, например «Claude Opus 5.5»').max(40),
+				effort: z.string().trim().min(1).max(16).optional(),
+				context: z.string().trim().min(1).max(16).optional(),
+			},
+			{
+				error: (iss) =>
+					iss.input === undefined
+						? 'укажи, какая ИИ сделала диораму: author: { model, effort?, context? }'
+						: undefined,
+			},
+		),
+		// Обязательно: кто запускал модель — имя и ссылка на его соцсеть/GitHub.
+		launchedBy: z.strictObject(
+			{
+				name: z.string().trim().min(1, 'укажи, кто запускал модель').max(40),
+				url: z.url({ protocol: /^https$/, error: 'ссылка на профиль: https://…' }).max(200),
+			},
+			{
+				error: (iss) =>
+					iss.input === undefined
+						? 'укажи, кто запускал модель: launchedBy: { name, url }'
+						: undefined,
+			},
+		),
 		description: z.string().max(280).default(''),
 		tags: z.array(z.string().min(1).max(24)).max(8).default([]),
 	}),
@@ -173,6 +205,17 @@ export const dioramaSchema = z.strictObject({
 				.optional()
 				.transform((v) => normalizeSky(v)),
 			fog: z.number().min(0).max(0.05).default(0),
+			// Воздушная перспектива: задник и всё ниже y = 0 тонут в цвете неба.
+			haze: z.number().min(0).max(1).default(DEFAULT_HAZE),
+			// Задник вокруг диорамы: объёмные облака, горы на горизонте, облачное море внизу.
+			backdrop: z
+				.strictObject({
+					clouds: z.number().min(0).max(1).default(0),
+					mountains: z.number().min(0).max(1).default(0),
+					cloudSea: z.boolean().default(false),
+					mountainColor: hexColor.optional(),
+				})
+				.prefault({}),
 		})
 		.prefault({}),
 	camera: z
@@ -183,6 +226,8 @@ export const dioramaSchema = z.strictObject({
 			minDistance: z.number().positive().optional(),
 			maxDistance: z.number().positive().optional(),
 			captureTime: z.number().min(0).max(60).default(2),
+			// Эффект миниатюры: верх и низ кадра размыты (0 — выключено).
+			tiltShift: z.number().min(0).max(1).default(0),
 		})
 		.prefault({}),
 	base: z.enum(['none', 'wood', 'stone']).default('none'),
@@ -228,6 +273,8 @@ export function toSceneConfig(d: Diorama): SceneConfig {
 		sky: d.atmosphere.sky,
 		seed: d.seed,
 		fog: d.atmosphere.fog,
+		haze: d.atmosphere.haze,
+		backdrop: d.atmosphere.backdrop,
 		base: d.base,
 		camera: {
 			position,
@@ -235,6 +282,7 @@ export function toSceneConfig(d: Diorama): SceneConfig {
 			autoRotate: d.camera.autoRotate,
 			minDistance: d.camera.minDistance ?? span * 0.3,
 			maxDistance: d.camera.maxDistance ?? span * 3,
+			tiltShift: d.camera.tiltShift,
 		},
 		captureTime: d.camera.captureTime,
 	};

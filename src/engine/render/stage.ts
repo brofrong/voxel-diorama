@@ -1,9 +1,19 @@
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSMShadowNode } from 'three/addons/csm/CSMShadowNode.js';
 import {
+	exp,
+	fog,
+	max,
+	oneMinus,
+	positionView,
+	positionWorld,
+	smoothstep,
+	uniform,
+} from 'three/tsl';
+import {
 	BoxGeometry,
+	Color,
 	DirectionalLight,
-	FogExp2,
 	Group,
 	HemisphereLight,
 	Mesh,
@@ -22,6 +32,7 @@ import {
 } from '../atmosphere/daycycle.ts';
 import { createSkyView, type SkyView } from '../atmosphere/skies.ts';
 import type { QualityLevel, SceneConfig, SkyConfig, Vec3 } from '../types.ts';
+import { type BackdropView, createBackdropView } from './backdrop-view.ts';
 import { type Box, clampPan } from './fly.ts';
 import { createBaseMaterial } from './materials.ts';
 import { createPipeline, type Pipeline } from './pipeline.ts';
@@ -48,14 +59,22 @@ export class Stage {
 	private readonly skyRadius: number;
 	private readonly seed: number;
 	private lastHour = 13;
-	private readonly fog: FogExp2;
+	private readonly hazeColor = uniform(new Color('#ffffff'));
+	/** Глубина (от камеры), с которой начинается дымка: передний край диорамы. */
+	private readonly hazeNear = uniform(0);
+	private readonly backdrop: BackdropView | null;
+	private readonly tiltShift: number;
 	private readonly center: Vector3;
 	private readonly radius: number;
+	/** Полудиагональ диорамы в плане. */
+	private readonly radiusXZ: number;
 	private base: Mesh | null = null;
 	quality: QualityLevel = 'high';
 	preset: QualityPreset = QUALITY_PRESETS.high;
 	private pipeline: Pipeline | null = null;
 	private readonly span: number;
+	/** Расстояние камеры до цели из конфига диорамы — «zoom 1» для setView. */
+	private readonly baseDistance: number;
 	/** Куда может улететь цель камеры при полёте с клавиатуры. */
 	private readonly flyBox: Box;
 	/** CSM подключается при сборке шейдера света — решается один раз, до первого кадра. */
@@ -70,12 +89,19 @@ export class Stage {
 		this.center = new Vector3(sx / 2, sy / 2, sz / 2);
 		this.radius = Math.hypot(sx, sy, sz) / 2;
 		this.span = Math.max(sx, sz);
+		this.radiusXZ = Math.hypot(sx, sz) / 2;
+		this.tiltShift = config.camera.tiltShift;
 		const margin = this.span * 0.1;
 		this.flyBox = { min: [-margin, 0, -margin], max: [sx + margin, sy + margin, sz + margin] };
 
 		const far = config.camera.maxDistance * 2 + this.radius * 4;
 		this.camera = new PerspectiveCamera(40, 1, 0.5, far);
 		this.camera.position.set(...config.camera.position);
+		this.baseDistance = Math.hypot(
+			config.camera.position[0] - config.camera.target[0],
+			config.camera.position[1] - config.camera.target[1],
+			config.camera.position[2] - config.camera.target[2],
+		);
 
 		this.controls = new OrbitControls(this.camera, renderer.domElement);
 		this.controls.target.set(...config.camera.target);
@@ -91,13 +117,15 @@ export class Stage {
 		this.seed = config.seed;
 		this.sky = config.sky;
 		this.skyView = createSkyView(config.sky, this.scene, this.skyRadius, config.seed);
-		this.fog = new FogExp2('#ffffff', config.fog);
-		if (config.fog > 0) this.scene.fog = this.fog;
+		this.scene.fogNode = this.createHaze(config.haze, config.fog);
+		this.backdrop = createBackdropView(config.backdrop, config.size, config.seed, this.scene);
 
 		this.sun.castShadow = true;
 		this.sun.shadow.mapSize.set(2048, 2048);
 		this.sun.shadow.bias = -0.0005;
 		this.sun.shadow.normalBias = 0.05;
+		// Радиус PCF в текселях карты теней: край тени мягкий, как при рассеянном свете.
+		this.sun.shadow.radius = 3;
 		const shadowCamera = this.sun.shadow.camera;
 		shadowCamera.left = -this.radius;
 		shadowCamera.right = this.radius;
@@ -120,6 +148,30 @@ export class Stage {
 		this.setHour(config.time.start);
 	}
 
+	/**
+	 * Дымка в цвет неба. Три слагаемых, берётся наибольшее:
+	 * - воздушная перспектива: от переднего края диорамы вглубь (передний план чистый,
+	 *   задник — облака и горы — тонет в горизонте);
+	 * - под диорамой (y < 0): облачное море и низ парящего острова растворяются;
+	 * - `fog` диорамы — прежний равномерный туман от камеры.
+	 */
+	private createHaze(haze: number, density: number) {
+		const viewZ = positionView.z.negate();
+		const k = (haze * 0.25) / this.radiusXZ;
+		const depth = max(viewZ.sub(this.hazeNear), 0).mul(k);
+		const aerial = oneMinus(exp(depth.mul(depth).negate())).mul(0.85);
+		const below = smoothstep(0, -this.radiusXZ, positionWorld.y).mul(Math.min(1, haze * 1.2));
+		const dense = oneMinus(
+			exp(
+				viewZ
+					.mul(viewZ)
+					.mul(density * density)
+					.negate(),
+			),
+		);
+		return fog(this.hazeColor, max(max(aerial, below), dense));
+	}
+
 	setHour(hour: number): void {
 		const p = paletteAt(hour);
 		const light = directionalLight(hour);
@@ -140,7 +192,8 @@ export class Stage {
 			night,
 			time: this.uniforms.time.value,
 		});
-		this.fog.color.set(p.fog);
+		this.hazeColor.value.set(this.sky.kind === 'solid' ? (this.sky.color ?? p.horizon) : p.horizon);
+		this.backdrop?.update(this.uniforms.time.value, night);
 		this.renderer.toneMappingExposure = p.exposure;
 		this.pipeline?.setNight(night);
 		this.uniforms.night.value = night;
@@ -168,6 +221,23 @@ export class Stage {
 			this.camera.position.y + dy,
 			this.camera.position.z + dz,
 		);
+	}
+
+	/**
+	 * Ракурс вокруг текущей цели: азимут и наклон в градусах (0° азимута — камера на +z,
+	 * 90° — на +x), zoom — множитель расстояния из конфига.
+	 */
+	setView(azimuth: number, elevation: number, zoom = 1): void {
+		const a = (azimuth * Math.PI) / 180;
+		const e = (Math.max(-10, Math.min(89, elevation)) * Math.PI) / 180;
+		const d = this.baseDistance * zoom;
+		const t = this.controls.target;
+		this.camera.position.set(
+			t.x + d * Math.cos(e) * Math.sin(a),
+			t.y + d * Math.sin(e),
+			t.z + d * Math.cos(e) * Math.cos(a),
+		);
+		this.controls.update();
 	}
 
 	setAutoRotate(on: boolean): void {
@@ -205,7 +275,9 @@ export class Stage {
 		}
 		this.uniforms.waves.value = this.preset.waves ? 1 : 0;
 		this.pipeline?.dispose();
-		this.pipeline = createPipeline(this.renderer, this.scene, this.camera, this.preset);
+		this.pipeline = createPipeline(this.renderer, this.scene, this.camera, this.preset, {
+			tiltShift: this.tiltShift,
+		});
 	}
 
 	resize(width: number, height: number): void {
@@ -216,6 +288,7 @@ export class Stage {
 
 	render(): void {
 		this.controls.update();
+		this.hazeNear.value = Math.max(0, this.camera.position.distanceTo(this.center) - this.radiusXZ);
 		this.skyView.follow(this.camera.position);
 		this.shadowsFrozen = true;
 		this.pipeline?.render();
@@ -233,6 +306,7 @@ export class Stage {
 		disposeGroup(this.world);
 		this.controls.dispose();
 		this.skyView.dispose();
+		this.backdrop?.dispose();
 		this.pipeline?.dispose();
 		if (this.base) {
 			this.base.geometry.dispose();

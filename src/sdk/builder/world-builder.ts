@@ -3,7 +3,7 @@ import { MAX_MATERIALS } from '../../engine/voxel/constants.ts';
 import { VoxelWorld } from '../../engine/voxel/world.ts';
 import { ANCHOR_NAME_RE, rotateFootprint } from '../anchors.ts';
 import { AIR, materialSignature } from '../materials.ts';
-import { createNoise2D, type Noise2D } from '../noise.ts';
+import { createNoise2D, createNoise3D, type Noise2D } from '../noise.ts';
 import { createRng, type Rng } from '../rng.ts';
 import { VoxelCanvas } from './canvas.ts';
 import { type Model, modelIndex } from './model.ts';
@@ -51,13 +51,98 @@ export interface ScatterOptions {
 	area?: [number, number, number, number];
 }
 
+type Area = [number, number, number, number];
+
+export interface GrowOptions {
+	/** Материал(ы) поверхности, на которой растёт. */
+	on: string | string[];
+	/** [x0, z0, x1, z1] включительно. По умолчанию — весь мир. */
+	area?: Area;
+	/** Доля подходящих клеток поверхности, 0..1. */
+	density?: number;
+}
+
+export interface GrassOptions extends GrowOptions {
+	/** Высота пучка [мин, макс] в вокселях. По умолчанию [1, 1]. */
+	height?: [number, number];
+}
+
+export interface FlowersOptions extends GrowOptions {
+	/** Материал стебля: цветок поднимается на воксель выше. По умолчанию без стебля. */
+	stem?: string;
+}
+
+export interface MossOptions {
+	/** Что обрастает мхом (камень, стены, крыши). */
+	on: string | string[];
+	area?: Area;
+	/** Доля открытой поверхности под мхом, 0..1. По умолчанию 0.4. */
+	amount?: number;
+	/** Размер пятен в вокселях. По умолчанию 5. */
+	scale?: number;
+}
+
+export interface VinesOptions {
+	/** От чего свисают: низ крон, карнизы, низ острова. */
+	from: string | string[];
+	area?: Area;
+	/** Доля подходящих нижних граней, 0..1. По умолчанию 0.15. */
+	density?: number;
+	/** Длина [мин, макс] в вокселях. По умолчанию [2, 6]. */
+	length?: [number, number];
+}
+
+export interface IslandOptions {
+	/** Центр в плане [x, z]. */
+	center: [number, number];
+	/** Радиус верха в вокселях. */
+	radius: number;
+	/** Средняя высота поверхности (y). */
+	top: number;
+	/** Глубина «корня» острова под поверхностью. По умолчанию radius × 1.1. */
+	depth?: number;
+	/** Неровность контура 0..0.6. По умолчанию 0.3. */
+	roughness?: number;
+	/** Холмистость верха в вокселях. По умолчанию 3. */
+	hills?: number;
+	/** Верхний слой (трава), почва под ним и камень корня. */
+	surface: string;
+	soil: string;
+	rock: string;
+	/** Толщина почвы. По умолчанию 3. */
+	soilDepth?: number;
+	/** Сколько каменных «сосулек» свисает снизу. По умолчанию radius / 2. */
+	spikes?: number;
+	/** Якоря `<name>.top` (над центром поверхности) и `<name>.bottom` (кончик корня). */
+	name?: string;
+}
+
+export interface IslandInfo {
+	/** y поверхности в центре. */
+	top: number;
+	/** Самый нижний y острова. */
+	bottom: number;
+}
+
+export interface WaterfallOptions {
+	/** Верхняя точка струи (обычно у края острова/скалы, снаружи). */
+	at: Vec3;
+	/** Ширина струи по x и z: [wx, wz]. По умолчанию [2, 1]. */
+	width?: [number, number];
+	/** Докуда падает (y); по умолчанию — до первого твёрдого вокселя или дна мира. */
+	to?: number;
+	material?: string;
+	/** Якоря `<name>.top` и `<name>.bottom` — для частиц `pour` и `mist`. */
+	name?: string;
+}
+
 const TERRAIN_PRESETS: Record<TerrainNoise, { amp: number; scale: number; octaves: number }> = {
 	flat: { amp: 0, scale: 1, octaves: 1 },
 	hills: { amp: 10, scale: 1 / 40, octaves: 4 },
 	mountains: { amp: 28, scale: 1 / 64, octaves: 5 },
 };
 
-export const DEFAULT_WATER: Material = { color: '#3a7bd5', emissive: 0, kind: 'water' };
+export const DEFAULT_WATER: Material = { color: '#3a7bd5', emissive: 0, kind: 'water', vary: 0 };
 
 const ROTATIONS: readonly Rotation[] = [0, 90, 180, 270];
 
@@ -118,6 +203,10 @@ export class WorldBuilder extends VoxelCanvas {
 
 	protected write(x: number, y: number, z: number, index: number): void {
 		if (!this.world.set(x, y, z, index)) this.outOfBounds++;
+	}
+
+	protected read(x: number, y: number, z: number): number {
+		return this.world.get(x, y, z);
 	}
 
 	protected resolve(material: string): number {
@@ -188,8 +277,8 @@ export class WorldBuilder extends VoxelCanvas {
 		}
 	}
 
-	water(options: WaterOptions): void {
-		const name = options.material ?? 'water';
+	/** Материал воды: из палитры или встроенный `water`. */
+	private waterId(name = 'water'): number {
 		let id = this.byName.get(name);
 		if (id === undefined) {
 			if (name !== 'water') id = this.resolve(name);
@@ -198,6 +287,11 @@ export class WorldBuilder extends VoxelCanvas {
 				this.byName.set('water', id);
 			}
 		}
+		return id;
+	}
+
+	water(options: WaterOptions): void {
+		const id = this.waterId(options.material);
 		const [sx, sy, sz] = this.size;
 		const level = Math.min(Math.floor(options.level), sy - 1);
 		for (let x = 0; x < sx; x++)
@@ -272,6 +366,219 @@ export class WorldBuilder extends VoxelCanvas {
 			if (options.name !== undefined) this.registerAnchor(`${options.name}.${key}`, anchors[key]);
 		}
 		return { anchors };
+	}
+
+	private resolveSet(names: string | string[]): Set<number> {
+		return new Set((Array.isArray(names) ? names : [names]).map((n) => this.resolve(n)));
+	}
+
+	/** Колонки области: верхний твёрдый воксель из `on` и пустота над ним. */
+	private *surface(on: string | string[], area?: Area): Generator<[number, number, number]> {
+		const ids = this.resolveSet(on);
+		const [x0, z0, x1, z1] = area ?? [0, 0, this.size[0] - 1, this.size[2] - 1];
+		for (let z = Math.max(0, z0); z <= Math.min(this.size[2] - 1, z1); z++) {
+			for (let x = Math.max(0, x0); x <= Math.min(this.size[0] - 1, x1); x++) {
+				const h = this.heightAt(x, z);
+				if (h < 0 || h + 1 >= this.size[1]) continue;
+				if (!ids.has(this.world.get(x, h, z)) || this.world.get(x, h + 1, z) !== 0) continue;
+				yield [x, h, z];
+			}
+		}
+	}
+
+	/** Пучки травы на поверхности. Несколько материалов — случайный оттенок у каждого пучка. */
+	grass(material: string | string[], options: GrassOptions): number {
+		const ids = (Array.isArray(material) ? material : [material]).map((m) => this.resolve(m));
+		const density = options.density ?? 0.3;
+		const [hMin, hMax] = options.height ?? [1, 1];
+		let count = 0;
+		for (const [x, h, z] of this.surface(options.on, options.area)) {
+			if (!this.rng.chance(density)) continue;
+			const id = this.rng.pick(ids);
+			const height = this.rng.int(hMin, hMax);
+			for (let i = 1; i <= height; i++) this.write(x, h + i, z, id);
+			count++;
+		}
+		return count;
+	}
+
+	/** Цветы: по воксельной «головке» случайного цвета, при `stem` — на стебле. */
+	flowers(colors: string | string[], options: FlowersOptions): number {
+		const ids = (Array.isArray(colors) ? colors : [colors]).map((m) => this.resolve(m));
+		const stem = options.stem === undefined ? null : this.resolve(options.stem);
+		const density = options.density ?? 0.04;
+		let count = 0;
+		for (const [x, h, z] of this.surface(options.on, options.area)) {
+			if (!this.rng.chance(density)) continue;
+			if (stem !== null) this.write(x, h + 1, z, stem);
+			this.write(x, h + (stem === null ? 1 : 2), z, this.rng.pick(ids));
+			count++;
+		}
+		return count;
+	}
+
+	/** Мох пятнами на открытых верхних и боковых гранях (камень, стены, крыши). */
+	moss(material: string, options: MossOptions): number {
+		const id = this.resolve(material);
+		const on = this.resolveSet(options.on);
+		const amount = options.amount ?? 0.4;
+		const scale = options.scale ?? 5;
+		const noise = createNoise3D(this.rng.int(0, 2 ** 31));
+		const [x0, z0, x1, z1] = options.area ?? [0, 0, this.size[0] - 1, this.size[2] - 1];
+		const changed: Vec3[] = [];
+		for (let z = Math.max(0, z0); z <= Math.min(this.size[2] - 1, z1); z++) {
+			for (let y = 0; y < this.size[1]; y++) {
+				for (let x = Math.max(0, x0); x <= Math.min(this.size[0] - 1, x1); x++) {
+					if (!on.has(this.world.get(x, y, z))) continue;
+					const top = this.world.get(x, y + 1, z) === 0;
+					const side =
+						this.world.get(x + 1, y, z) === 0 ||
+						this.world.get(x - 1, y, z) === 0 ||
+						this.world.get(x, y, z + 1) === 0 ||
+						this.world.get(x, y, z - 1) === 0;
+					if (!top && !side) continue;
+					const n = (noise.fbm(x / scale, y / scale, z / scale, 2) - 0.3) / 0.4;
+					// Мох тянется к верху: на верхних гранях его больше.
+					if (n < amount + (top ? 0.15 : 0)) changed.push([x, y, z]);
+				}
+			}
+		}
+		// Перекрашиваем после обхода, чтобы свежий мох не влиял на соседей.
+		for (const [x, y, z] of changed) this.write(x, y, z, id);
+		return changed.length;
+	}
+
+	/** Лианы и плющ: свисают вниз из-под крон, карнизов, низа острова — пока есть воздух. */
+	vines(material: string | string[], options: VinesOptions): number {
+		const ids = (Array.isArray(material) ? material : [material]).map((m) => this.resolve(m));
+		const from = this.resolveSet(options.from);
+		const density = options.density ?? 0.15;
+		const [lMin, lMax] = options.length ?? [2, 6];
+		const [x0, z0, x1, z1] = options.area ?? [0, 0, this.size[0] - 1, this.size[2] - 1];
+		const starts: Vec3[] = [];
+		for (let z = Math.max(0, z0); z <= Math.min(this.size[2] - 1, z1); z++) {
+			for (let y = 1; y < this.size[1]; y++) {
+				for (let x = Math.max(0, x0); x <= Math.min(this.size[0] - 1, x1); x++) {
+					if (from.has(this.world.get(x, y, z)) && this.world.get(x, y - 1, z) === 0) {
+						starts.push([x, y - 1, z]);
+					}
+				}
+			}
+		}
+		let count = 0;
+		for (const [x, y, z] of starts) {
+			if (!this.rng.chance(density)) continue;
+			const id = this.rng.pick(ids);
+			const length = this.rng.int(lMin, lMax);
+			for (let i = 0; i < length && y - i >= 0 && this.world.get(x, y - i, z) === 0; i++) {
+				this.write(x, y - i, z, id);
+			}
+			count++;
+		}
+		return count;
+	}
+
+	/**
+	 * Парящий остров: неровный контур, холмистый верх, слои трава/почва/камень и конический
+	 * каменный «корень» с сосульками снизу. Вместо среза мира «до дна».
+	 */
+	island(options: IslandOptions): IslandInfo {
+		const { radius, top } = options;
+		const [cx, cz] = options.center;
+		const depth = options.depth ?? radius * 1.1;
+		const roughness = options.roughness ?? 0.3;
+		const hills = options.hills ?? 3;
+		const soilDepth = options.soilDepth ?? 3;
+		const surface = this.resolve(options.surface);
+		const soil = this.resolve(options.soil);
+		const rock = this.resolve(options.rock);
+		const seed = this.rng.int(0, 2 ** 31);
+		const outline = createNoise2D(seed);
+		const relief = createNoise2D(seed ^ 0x68e31da4);
+		const reach = Math.ceil(radius * (1 + roughness));
+		let bottom = top;
+		let centerTop = top;
+		const columns: Array<{ x: number; z: number; low: number; d: number }> = [];
+		for (let z = Math.floor(cz - reach); z <= Math.ceil(cz + reach); z++) {
+			for (let x = Math.floor(cx - reach); x <= Math.ceil(cx + reach); x++) {
+				const edge =
+					1 + roughness * (outline.fbm(x / (radius * 0.45), z / (radius * 0.45), 3) - 0.5) * 2;
+				const d = Math.hypot(x + 0.5 - cx, z + 0.5 - cz) / (radius * edge);
+				if (d >= 1) continue;
+				// Плечо у края: поверхность скругляется вниз, а не обрывается ступенькой.
+				const shoulder = Math.round(Math.max(0, d - 0.75) * 8);
+				const h = Math.round(
+					top + hills * (relief.fbm(x / 18, z / 18, 3) - 0.5) * 2 * (1 - d ** 3) - shoulder,
+				);
+				const roots = depth * (1 - d) ** 0.8 * (0.7 + 0.6 * relief.fbm(x / 7 + 40, z / 7, 2));
+				const low = Math.round(h - Math.max(soilDepth + 1, roots));
+				for (let y = low; y <= h; y++) {
+					this.write(x, y, z, y === h ? surface : y > h - soilDepth - 1 ? soil : rock);
+				}
+				if (x === Math.floor(cx) && z === Math.floor(cz)) centerTop = h;
+				bottom = Math.min(bottom, low);
+				columns.push({ x, z, low, d });
+			}
+		}
+		const spikes = options.spikes ?? Math.round(radius / 2);
+		const inner = columns.filter((c) => c.d < 0.75);
+		for (let i = 0; i < spikes && inner.length > 0; i++) {
+			const c = this.rng.pick(inner);
+			const length = this.rng.int(3, Math.max(4, Math.round(depth * 0.35)));
+			const r0 = this.rng.float(1, 2.2);
+			for (let k = 1; k <= length; k++) {
+				const r = r0 * (1 - k / (length + 1));
+				const r2 = Math.max(r, 0.5) ** 2;
+				for (let dz = -Math.ceil(r); dz <= Math.ceil(r); dz++) {
+					for (let dx = -Math.ceil(r); dx <= Math.ceil(r); dx++) {
+						if (dx * dx + dz * dz <= r2) this.write(c.x + dx, c.low - k, c.z + dz, rock);
+					}
+				}
+			}
+			bottom = Math.min(bottom, c.low - length);
+		}
+		if (options.name !== undefined) {
+			if (!ANCHOR_NAME_RE.test(options.name)) {
+				throw new Error(`имя "${options.name}": латиница с маленькой буквы, без точек`);
+			}
+			this.registerAnchor(`${options.name}.top`, [cx, centerTop + 1, cz]);
+			this.registerAnchor(`${options.name}.bottom`, [cx, bottom, cz]);
+		}
+		return { top: centerTop, bottom };
+	}
+
+	/** Водопад: струя воды вниз от `at` через воздух. Анимацию даёт `pour` на якорях. */
+	waterfall(options: WaterfallOptions): { top: Vec3; bottom: Vec3 } {
+		const id = this.waterId(options.material);
+		const [wx, wz] = options.width ?? [2, 1];
+		const [ax, ay, az] = [
+			Math.floor(options.at[0]),
+			Math.floor(options.at[1]),
+			Math.floor(options.at[2]),
+		];
+		let lowest = ay;
+		for (let dz = 0; dz < wz; dz++) {
+			for (let dx = 0; dx < wx; dx++) {
+				const x = ax + dx;
+				const z = az + dz;
+				for (let y = ay; y >= Math.max(0, options.to ?? 0); y--) {
+					const v = this.world.get(x, y, z);
+					if (v !== 0 && v !== id) break;
+					this.write(x, y, z, id);
+					lowest = Math.min(lowest, y);
+				}
+			}
+		}
+		const top: Vec3 = [ax + wx / 2, ay + 1, az + wz / 2];
+		const bottom: Vec3 = [ax + wx / 2, lowest, az + wz / 2];
+		if (options.name !== undefined) {
+			if (!ANCHOR_NAME_RE.test(options.name)) {
+				throw new Error(`имя "${options.name}": латиница с маленькой буквы, без точек`);
+			}
+			this.registerAnchor(`${options.name}.top`, top);
+			this.registerAnchor(`${options.name}.bottom`, bottom);
+		}
+		return { top, bottom };
 	}
 
 	/** Случайно расставляет модели по поверхности. Возвращает число поставленных. */

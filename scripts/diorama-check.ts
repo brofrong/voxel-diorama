@@ -54,7 +54,7 @@ for (const slug of targets) {
 			);
 		}
 		console.log(
-			`  «${diorama.meta.title}» · ${diorama.meta.createdAt} · size ${diorama.size.join('×')}`,
+			`  «${diorama.meta.title}» · ${diorama.meta.createdAt} · ${diorama.meta.author.model} · size ${diorama.size.join('×')}`,
 		);
 		console.log(
 			`  вокселей ${stats.voxels.toLocaleString('ru-RU')} · чанков ${stats.chunks} · материалов ${stats.materials} · ${formatBytes(stats.bytes)} · ${ms} мс`,

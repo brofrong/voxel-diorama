@@ -1,4 +1,5 @@
 import { type Diorama, slugFromDioramaPath, toSceneConfig } from '#sdk';
+import { formatAuthor } from '../format.ts';
 import type { CardData, ViewerPayload } from '../types.ts';
 import { thumbUrl, worldPath } from './thumbs.ts';
 
@@ -23,6 +24,8 @@ function toCard(slug: string, d: Diorama): CardData {
 		slug,
 		title: d.meta.title,
 		createdAt: d.meta.createdAt,
+		author: formatAuthor(d.meta.author),
+		launchedBy: d.meta.launchedBy,
 		description: d.meta.description,
 		tags: d.meta.tags,
 		thumb: thumbUrl(slug),

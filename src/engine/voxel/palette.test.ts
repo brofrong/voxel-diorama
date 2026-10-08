@@ -15,8 +15,8 @@ test('srgbToLinear на опорных точках', () => {
 
 test('buildPaletteLUT: индекс i+1, виды, линейные цвета, emissive', () => {
 	const lut = buildPaletteLUT([
-		{ color: '#ffffff', emissive: 0, kind: 'solid' },
-		{ color: '#000000', emissive: 2, kind: 'water' },
+		{ color: '#ffffff', emissive: 0, kind: 'solid', vary: 0 },
+		{ color: '#000000', emissive: 2, kind: 'water', vary: 0 },
 	]);
 	expect(lut.kinds[0]).toBe(0);
 	expect(lut.kinds[1]).toBe(KIND_SOLID);
@@ -31,6 +31,7 @@ test('buildPaletteLUT отвергает больше 255 материалов',
 		color: '#ffffff',
 		emissive: 0,
 		kind: 'solid' as const,
+		vary: 0,
 	}));
 	expect(() => buildPaletteLUT(many)).toThrow('255');
 });

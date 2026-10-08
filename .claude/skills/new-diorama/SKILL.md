@@ -19,19 +19,45 @@ description: Use when the user asks to create, add or generate a new voxel diora
 bun run diorama:new <slug> "Название"
 ```
 
+**Сразу заполни `meta.author` — кто делает диораму.** Поле обязательное: без него `defineDiorama` падает. Оно показывается на карточке главной. Возьми данные о себе из системного промпта:
+- `model` — название модели, например `'Claude Opus 5.5'`, а не ID.
+- `effort` — уровень reasoning effort, например `'high'`.
+- `context` — размер контекстного окна, например `'1M'`.
+
+Если effort или контекст неизвестны, удали эти поля и не выдумывай значения. Если диораму заметно дорабатывает другая модель, укажи ту, что сделала основную работу.
+
+**И `meta.launchedBy` — кто запускал модель:** имя и https-ссылка на соцсеть или GitHub. Значение по умолчанию для этого репозитория указано в `CLAUDE.md`. Если диораму запускает другой человек, спроси у него имя и ссылку.
+
+```ts
+meta: {
+  title: '…',
+  createdAt: '…',
+  author: { model: 'Claude Opus 5.5', effort: 'high', context: '1M' },
+  launchedBy: { name: 'Brofrong', url: 'https://github.com/brofrong' },
+  …
+}
+```
+
 Пиши `src/dioramas/<slug>/index.ts`. Что есть в SDK (`#sdk`):
 
 - `w.set / box / sphere / cylinder / line / clear` — примитивы; материал `'air'` вырезает.
+- Кисти (есть и в `model()`): `w.ellipsoid(c, [rx, ry, rz], m)`; `w.blob(c, r | [rx, ry, rz], m, { roughness, scale, seed })` — бугристые кроны, облака, скалы, кусты; `w.cone(base, r, h, m, { top })` — крыши, шпили, горки; `w.curve([p0, p1, …], m, { radius, endRadius })` — ветви, лианы, перила, изгиб крыши, русло; `w.shade(a, b, ['тёмный', 'основной', 'светлый'], { only, scale, speckle })` — перекрасить уже нарисованное в коробке пятнами оттенков.
+- Поверхность: `w.grass(m | [m, …], { on, density, height })` — пучки травы; `w.flowers([цвета], { on, density, stem })`; `w.moss(m, { on, amount })` — мох на открытых гранях камня/стен/крыш; `w.vines(m, { from, density, length })` — лианы из-под крон, карнизов, низа острова.
+- `w.island({ center: [x, z], radius, top, surface, soil, rock, depth?, hills?, roughness?, spikes?, name })` — парящий остров: неровный контур, слои трава/почва/камень, каменный корень с «сосульками». Якоря `<name>.top`, `<name>.bottom`. Вместо скучного среза мира «до дна» с голыми стенками.
+- `w.waterfall({ at, width: [wx, wz], to, name })` — струя воды вниз до твёрдого; якоря `<name>.top`/`<name>.bottom` для частиц `pour` и `mist`. `at` — снаружи края, в воздухе.
 - `w.terrain({ noise: 'flat' | 'hills' | 'mountains', base, amp, scale, top, fill })`, `w.water({ level })`.
 - `w.place(model, [x, y, z], { rotate })` — `[x, y, z]` это **нижний центр** модели.
 - `w.scatter(prefabs.tree, { count, on: 'grass', minDistance, area })` — ставит на поверхность; всегда указывай `on`. `scatter` проверяет только материал приземления, поэтому у домов/дорог сузь `area`, чтобы туда не попало.
 - `w.heightAt(x, z)` — верхний твёрдый воксель колонки; `w.get(p)` — имя материала.
 - `w.rng` (`int`, `float`, `pick`, `chance`, `fork`), `w.noise` (`value`, `fbm`). **Никакого `Math.random`.**
-- `prefabs.tree | pine | house | rock` (опции цвета/размера, `rng`).
+- `prefabs.tree | pine | house | rock` (опции цвета/размера, `rng`) — простые, «леденцы».
+- Деревья с объёмной кроной в 3 оттенках: `prefabs.sakura | willow | maple` (`{ rng, height, colors: [тёмный, основной, светлый], bark }`; клён по умолчанию осенний), `prefabs.bush({ rng, size, colors, flowers })`. Для заметных деревьев бери их, а не `tree`.
+- Архитектура: `prefabs.pagoda({ tiers, base, wall, post, roof, trim, stone, glow })` (якоря `door`, `top`), `prefabs.torii({ width, height })`, `prefabs.archBridge({ length, width, rise })` (вдоль x; якоря `start`, `end`, `top`), `prefabs.stoneLantern()` (якорь `light`).
 - Своя модель: `model({ size: [x, y, z], palette: { … } }, (m) => { … })` — тот же набор примитивов. Если модель универсальна (пригодится в других диорамах) — вынеси её в `src/sdk/prefabs/` с тестом в `prefabs.test.ts`.
-- Материалы: `'#rrggbb'` или `{ color, emissive, kind: 'solid' | 'water' | 'glass' }`. Светящееся (окна, фонари, лава) — `emissive` 0.5–2.
+- Материалы: `'#rrggbb'` или `{ color, emissive, kind: 'solid' | 'water' | 'glass', vary }`. Светящееся (окна, фонари, лава) — `emissive` 0.5–2. `vary` 0–0.5 — разброс оттенка между соседними вокселями (по умолчанию 0.06 у solid, 0 у воды/стекла): трава, листва, камень, земля — 0.1–0.15; гладкие стены, вывески, буквы — 0–0.03. Оттенки в шейдере не тратят палитру.
+- **Больших одноцветных плоскостей быть не должно**: трава, крыши, камень, стены — `vary` и/или `w.shade` в 2–4 оттенка.
 - Ключ палитры с именем, совпадающим с материалом префаба (`leaves`, `trunk`, `needles`, `wall`, `roof`, `door`, `window`, `chimney`, `stone`, `stone-dark`), перекрашивает этот префаб везде в диораме — используй осознанно.
-- Корневые поля: `meta`, `seed`, `size`, `palette`, `build`, `entities`, `particles`, `lights`, `atmosphere: { time, sky, fog }` (туман 0–0.004 — он быстро «выбеливает» цвета, обычно 0), `camera`, `base: 'none' | 'wood' | 'stone'`.
+- Корневые поля: `meta`, `seed`, `size`, `palette`, `build`, `entities`, `particles`, `lights`, `atmosphere: { time, sky, fog, haze, backdrop }` (туман 0–0.004 — он быстро «выбеливает» цвета, обычно 0), `camera` (+ `tiltShift`), `base: 'none' | 'wood' | 'stone'`.
 - Префабы атмосферы: `lantern({ post, glow })` (якорь `light`), `campfire()` (якорь `fire`); у `house` есть якорь `chimney` (над трубой).
 
 ### Сущности (анимация)
@@ -63,6 +89,9 @@ atmosphere: { time: { start: 'sunset', speed: 1, cycle: 120 }, sky: 'realistic' 
 - `sky`: `'gradient'` (по умолчанию), `'solid'` или `{ kind: 'solid', color: '#rrggbb' }`, `'realistic'` (атмосферное рассеяние, солнце), `'stylized'` (диски солнца и луны, звёзды, облака).
 - Ночью `emissive`-материалы светятся ярче; зритель может менять время, скорость и небо в меню ⚙.
 - Старое `time: { fixed: 'sunset' }` работает как `{ start: 'sunset', speed: 0 }`.
+- `haze` 0–1 (по умолчанию 0.5) — воздушная перспектива: дальнее и всё ниже y = 0 тонет в цвете неба, передний план чистый.
+- `backdrop: { clouds: 0–1, mountains: 0–1, cloudSea: true, mountainColor }` — задник: объёмные воксельные облака вокруг, горы на горизонте, облачное море внизу (для парящих островов). Без задника за диорамой пустое небо.
+- `camera.tiltShift` 0–1 — размытие верха и низа кадра, эффект миниатюры; 0.3–0.5 заметно, но не мешает.
 
 ### Частицы и свет
 
@@ -100,8 +129,9 @@ bun run diorama:check <slug>
 
 1. Dev-сервер: если не запущен — `bun run dev --port 5173 --strictPort` в фоне.
 2. `preview_navigate` → `{ kind: 'environment-port', port: 5173, path: '/d/<slug>' }`, затем `preview_wait_for` с `[data-status="ready"]` (timeout 60000), затем `preview_snapshot`.
-3. Посмотри 2–3 ракурса (`preview_scroll` для зума) и 2–3 часа суток: `preview_evaluate` с `window.__diorama.setHour(13)`, `setHour(18.5)`, `setHour(23)`. Небо — `window.__diorama.setSky('stylized')`.
-4. Чеклист:
+3. Сними 3 ракурса и 1–2 часа суток. Ракурс — `preview_evaluate` с `window.__diorama.setView(azimuth, elevation, zoom)` (градусы; zoom — множитель расстояния камеры диорамы), например `setView(45, 30)`, `setView(200, 15, 0.8)`, `setView(315, 55, 1.2)`. Час — `setHour(13)`, `setHour(18.5)`, `setHour(23)`; небо — `setSky('stylized')`. На слабой графике превью удобнее `/d/<slug>?capture`: там высокое качество и кадр перерисовывается только при изменениях. Каждый кадр — `preview_snapshot` с `save: true` (путь — в `screenshotPath`). Для анимации — 2 кадра обычной страницы с разницей 2–3 с.
+4. **Критик.** Запусти агента `diorama-critic` (инструмент Agent, `subagent_type: 'diorama-critic'`). Передай ему замысел (2–5 строк), пути к скриншотам, номер итерации и его прошлый отзыв. Он видит только картинки и отвечает оценками по рубрике и списком исправлений.
+5. Сам пройди чеклист:
    - силуэт читается, есть центр внимания, сцена не пустая и не перегруженная;
    - палитра гармоничная, контраст между материалами достаточный;
    - нет висящих в воздухе вокселей и деревьев в воде/на крышах;
@@ -109,7 +139,8 @@ bun run diorama:check <slug>
    - анимации: 2 снимка с разницей 2–3 с — объекты сдвинулись; ходоки идут по земле/мосту, а не сквозь рельеф; лопасти на ступице; стая не улетает за кадр;
    - атмосфера: дым идёт из труб (не из крыши), снег/дождь исчезают у земли, а не под ней; фонари и костёр светят ночью; частиц не так много, что они закрывают сцену;
    - в консоли нет ошибок (смотри diagnostics в snapshot).
-5. Правь код — вьюер обновится сам (HMR). Изменения воксельного содержимого применяются на лету; изменения `camera`/`fog`/`size`/`base` перезагружают страницу автоматически. 3–5 итераций максимум; если не выходит — покажи пользователю текущее состояние и спроси.
+6. Правь код по отзыву критика (сначала верхние пункты «ГЛАВНОЕ») — вьюер обновится сам (HMR). Изменения воксельного содержимого применяются на лету; изменения `camera`/`fog`/`size`/`base` перезагружают страницу автоматически.
+7. Повторяй съёмку → критик → правки, пока критик не скажет **ПРИНЯТО** (итог ≥ 8.0 и ни одной оценки ниже 6). Не больше 8 кругов; если не выходит — покажи пользователю текущее состояние и последний отзыв критика.
 
 ## 5. Скриншот для карточки
 

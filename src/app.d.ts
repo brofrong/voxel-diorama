@@ -19,6 +19,8 @@ declare global {
 			setHour(hour: number): void;
 			setSky(kind: SkyKind): void;
 			setQuality(quality: QualitySetting): void;
+			/** Ракурс для ревью: азимут/наклон в градусах, zoom — множитель расстояния. */
+			setView(azimuth: number, elevation: number, zoom?: number): void;
 			saveThumbnail(): Promise<{ ok: boolean; path?: string; bytes?: number; error?: string }>;
 		};
 	}
