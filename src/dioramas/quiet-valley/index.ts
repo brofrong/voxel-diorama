@@ -2,12 +2,12 @@ import { defineDiorama, prefabs } from '#sdk';
 
 export default defineDiorama({
 	meta: {
-		title: 'Тихая долина',
+		title: 'Quiet Valley',
 		createdAt: '2026-10-06',
 		author: { model: 'Claude Opus 5.5', effort: 'high', context: '1M' },
 		launchedBy: { name: 'Brofrong', url: 'https://github.com/brofrong' },
-		description: 'Домик у озера среди холмов на закате',
-		tags: ['деревня', 'озеро', 'закат'],
+		description: 'A cottage by a lake among the hills at sunset',
+		tags: ['village', 'lake', 'sunset'],
 	},
 	seed: 7,
 	size: [96, 40, 96],

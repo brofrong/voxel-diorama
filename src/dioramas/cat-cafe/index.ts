@@ -745,13 +745,13 @@ const ENTITIES: Placement[] = [
 
 export default defineDiorama({
 	meta: {
-		title: 'Кошачья кофейня',
+		title: 'Cat Café',
 		createdAt: '2026-10-07',
 		author: { model: 'Claude Opus 5.5', effort: 'high', context: '1M' },
 		launchedBy: { name: 'Brofrong', url: 'https://github.com/brofrong' },
 		description:
-			'Угловая кофейня, оплетённая плющом: маркиза, витрина с пирожными, тёплая ниша у двери и вывеска с котом',
-		tags: ['кофейня', 'город', 'плющ', 'уют'],
+			'An ivy-covered corner café with a striped awning, a pastry window, a warm nook by the door and a cat-shaped sign',
+		tags: ['café', 'town', 'ivy', 'cozy'],
 	},
 	seed: 1729,
 	size: [CODE_SIZE[2], CODE_SIZE[1], CODE_SIZE[0]],

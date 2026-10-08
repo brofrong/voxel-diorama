@@ -70,6 +70,8 @@ export interface MountOptions {
 	atmosphere?: AtmosphereFactory;
 	/** Показывать частицы (по умолчанию да). */
 	particles?: boolean;
+	/** Множитель скорости полёта WASD (по умолчанию 1). */
+	flySpeed?: number;
 }
 
 export interface CaptureOptions {
@@ -97,6 +99,8 @@ export interface DioramaController {
 	reloadWorld(url: string, entities?: EntityFactory, atmosphere?: AtmosphereFactory): Promise<void>;
 	setParticles(on: boolean): void;
 	setAutoRotate(on: boolean): void;
+	/** Множитель скорости полёта WASD (1 — базовая). */
+	setFlySpeed(multiplier: number): void;
 	/** Ракурс: азимут и наклон в градусах, zoom — множитель расстояния (1 — как в диораме). */
 	setView(view: { azimuth: number; elevation: number; zoom?: number }): void;
 	/** Пересоздать сущности на текущем мире. */
@@ -157,6 +161,7 @@ export async function mountDiorama(
 	let lastFrame = performance.now();
 	// Кадр карточки не двигается с клавиатуры.
 	const fly = capture ? null : new FlyInput(window);
+	let flyMultiplier = options.flySpeed ?? 1;
 	const fps = new FpsMeter();
 	// В режиме скриншота сцена статична: кадр рисуется, только когда что-то поменялось
 	// (камера, настройки, мир). Иначе слабая (программная) графика захлёбывается.
@@ -202,7 +207,7 @@ export async function mountDiorama(
 		const dt = Math.min(0.1, raw);
 		fps.sample(raw);
 		if (fly && fly.keys.size > 0) {
-			const v = flyVelocity(fly.keys, stage.yaw, stage.flySpeed);
+			const v = flyVelocity(fly.keys, stage.yaw, stage.flySpeed * flyMultiplier);
 			stage.pan([v[0] * dt, v[1] * dt, v[2] * dt]);
 		}
 		if (!capture) {
@@ -356,6 +361,9 @@ export async function mountDiorama(
 		getQuality: () => ({ setting: qualitySetting, effective: stage.quality }),
 		setAutoRotate(on) {
 			stage.setAutoRotate(on);
+		},
+		setFlySpeed(multiplier) {
+			flyMultiplier = Math.max(0, multiplier);
 		},
 		setView({ azimuth, elevation, zoom }) {
 			stage.setView(azimuth, elevation, zoom);

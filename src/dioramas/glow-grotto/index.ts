@@ -148,13 +148,13 @@ const swarm = custom((pose, t, ctx) => {
 
 export default defineDiorama({
 	meta: {
-		title: 'Светящийся грот',
+		title: 'Glow Grotto',
 		createdAt: '2026-10-08',
 		author: { model: 'Claude Fable 5.1', effort: 'low', context: '1M' },
 		launchedBy: { name: 'Brofrong', url: 'https://github.com/brofrong' },
 		description:
-			'Разрез скального массива: грот с подземной речкой, сталактиты и сталагмиты, слои пород на срезе. Светят флюорит, аметист, грибы, светлячки и жуки, под сводом кружат летучие мыши.',
-		tags: ['пещера', 'речка', 'сталактиты', 'кристаллы', 'светлячки', 'ночь'],
+			'A cutaway of solid rock: a grotto with an underground stream, stalactites and stalagmites, rock strata in the section. Fluorite, amethyst, mushrooms, fireflies and beetles glow while bats circle under the vault.',
+		tags: ['cave', 'stream', 'stalactites', 'crystals', 'fireflies', 'night'],
 	},
 	seed: 177033388,
 	size: [SX, SY, SZ],

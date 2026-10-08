@@ -17,13 +17,13 @@ const riverZ = (x: number): number => 38 + 5 * Math.sin(x / 12);
 
 export default defineDiorama({
 	meta: {
-		title: 'Мельница у реки',
+		title: 'River Mill',
 		createdAt: '2026-10-07',
 		author: { model: 'Claude Opus 5.5', effort: 'high', context: '1M' },
 		launchedBy: { name: 'Brofrong', url: 'https://github.com/brofrong' },
 		description:
-			'Мельница, житель на тропинке через мост, кот у дома, птицы над рекой; дым, туман и светлячки',
-		tags: ['мельница', 'река', 'жители'],
+			'A watermill, a villager walking the path over the bridge, a cat by the house, birds over the river; smoke, mist and fireflies',
+		tags: ['mill', 'river', 'people'],
 	},
 	seed: 11,
 	size: [96, 40, 80],

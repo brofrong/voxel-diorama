@@ -92,7 +92,11 @@ export class Stage {
 		this.radiusXZ = Math.hypot(sx, sz) / 2;
 		this.tiltShift = config.camera.tiltShift;
 		const margin = this.span * 0.1;
-		this.flyBox = { min: [-margin, 0, -margin], max: [sx + margin, sy + margin, sz + margin] };
+		// Ниже земли — на высоту четверти диорамы: можно заглянуть под край и рассмотреть основание.
+		this.flyBox = {
+			min: [-margin, -this.span * 0.25, -margin],
+			max: [sx + margin, sy + margin, sz + margin],
+		};
 
 		const far = config.camera.maxDistance * 2 + this.radius * 4;
 		this.camera = new PerspectiveCamera(40, 1, 0.5, far);
@@ -110,7 +114,8 @@ export class Stage {
 		this.controls.autoRotateSpeed = 0.5;
 		this.controls.minDistance = config.camera.minDistance;
 		this.controls.maxDistance = config.camera.maxDistance;
-		this.controls.maxPolarAngle = Math.PI * 0.49;
+		// Чуть ниже горизонта цели: можно посмотреть снизу вверх.
+		this.controls.maxPolarAngle = Math.PI * 0.6;
 		this.controls.update();
 
 		this.skyRadius = far * 0.9;
@@ -201,9 +206,9 @@ export class Stage {
 		this.uniforms.horizon.value.set(p.horizon);
 	}
 
-	/** Скорость полёта (ед./с): диорама из края в край — примерно за 8 с. */
+	/** Скорость полёта (ед./с): диорама из края в край — примерно за 6.7 с. */
 	get flySpeed(): number {
-		return this.span / 8;
+		return (this.span / 8) * 1.2;
 	}
 
 	/** Азимут камеры вокруг цели (для направления WASD). */

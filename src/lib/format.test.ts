@@ -1,11 +1,9 @@
 import { expect, test } from 'bun:test';
 import { formatAuthor, formatDate } from './format.ts';
 
-test('formatDate по-русски и без сдвига часового пояса', () => {
-	const s = formatDate('2026-10-06');
-	expect(s).toContain('6 октября');
-	expect(s).toContain('2026');
-	expect(formatDate('2027-01-01')).toContain('1 января');
+test('formatDate по-английски и без сдвига часового пояса', () => {
+	expect(formatDate('2026-10-06')).toBe('October 6, 2026');
+	expect(formatDate('2027-01-01')).toBe('January 1, 2027');
 });
 
 test('formatAuthor: модель и необязательные effort/context', () => {

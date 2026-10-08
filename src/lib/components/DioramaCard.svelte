@@ -20,9 +20,9 @@
 	<div class="body">
 		<h2><a class="open" href={resolve('/d/[slug]', { slug: card.slug })}>{card.title}</a></h2>
 		<time datetime={card.createdAt}>{formatDate(card.createdAt)}</time>
-		<p class="author">Автор: {card.author}</p>
+		<p class="author">Made by: {card.author}</p>
 		<p class="author">
-			Создал:
+			Launched by:
 			<a class="profile" href={card.launchedBy.url} target="_blank" rel="noopener noreferrer"
 				>{card.launchedBy.name}</a
 			>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { QualityLevel, QualitySetting, SkyKind } from '#engine';
 	import {
+		FLY_SPEED,
 		formatHour,
 		QUALITY_NAMES,
 		QUALITY_OPTIONS,
@@ -17,6 +18,7 @@
 		particles: boolean;
 		autoRotate: boolean;
 		showFps: boolean;
+		flySpeed: number;
 		onHourInput: (hour: number) => void;
 		onDrag: (dragging: boolean) => void;
 		onSpeed: (speed: number) => void;
@@ -25,15 +27,16 @@
 		onParticles: (on: boolean) => void;
 		onAutoRotate: (on: boolean) => void;
 		onShowFps: (on: boolean) => void;
+		onFlySpeed: (multiplier: number) => void;
 		onReset: () => void;
 	}
 
 	let p: Props = $props();
 </script>
 
-<div class="panel" role="dialog" aria-label="Настройки диорамы">
+<div class="panel" role="dialog" aria-label="Diorama settings">
 	<section>
-		<label class="title" for="hour">Время суток <span class="value">{formatHour(p.hour)}</span></label>
+		<label class="title" for="hour">Time of day <span class="value">{formatHour(p.hour)}</span></label>
 		<input
 			id="hour"
 			type="range"
@@ -41,7 +44,7 @@
 			max="24"
 			step="0.05"
 			value={p.hour}
-			aria-label="Время суток"
+			aria-label="Time of day"
 			oninput={(e) => p.onHourInput(Number(e.currentTarget.value))}
 			onpointerdown={() => p.onDrag(true)}
 			onpointerup={() => p.onDrag(false)}
@@ -50,7 +53,7 @@
 	</section>
 
 	<section>
-		<span class="title" id="speed-label">Скорость смены дня и ночи</span>
+		<span class="title" id="speed-label">Day–night cycle speed</span>
 		<fieldset class="segmented" aria-labelledby="speed-label">
 			{#each SPEED_OPTIONS as option (option.value)}
 				<button
@@ -64,7 +67,7 @@
 	</section>
 
 	<section>
-		<span class="title" id="sky-label">Небо</span>
+		<span class="title" id="sky-label">Sky</span>
 		<fieldset class="skies" aria-labelledby="sky-label">
 			{#each SKY_OPTIONS as option (option.value)}
 				<button
@@ -82,8 +85,8 @@
 
 	<section>
 		<span class="title" id="quality-label">
-			Качество
-			{#if p.quality === 'auto'}<span class="value">Авто · {QUALITY_NAMES[p.effectiveQuality]}</span>{/if}
+			Quality
+			{#if p.quality === 'auto'}<span class="value">Auto · {QUALITY_NAMES[p.effectiveQuality]}</span>{/if}
 		</span>
 		<fieldset class="segmented" aria-labelledby="quality-label">
 			{#each QUALITY_OPTIONS as option (option.value)}
@@ -98,14 +101,29 @@
 	</section>
 
 	<section class="toggles">
-		<label><input type="checkbox" checked={p.particles} onchange={(e) => p.onParticles(e.currentTarget.checked)} /> Частицы</label>
-		<label><input type="checkbox" checked={p.autoRotate} onchange={(e) => p.onAutoRotate(e.currentTarget.checked)} /> Вращение камеры</label>
+		<label><input type="checkbox" checked={p.particles} onchange={(e) => p.onParticles(e.currentTarget.checked)} /> Particles</label>
+		<label><input type="checkbox" checked={p.autoRotate} onchange={(e) => p.onAutoRotate(e.currentTarget.checked)} /> Auto-rotate</label>
 		<label><input type="checkbox" checked={p.showFps} onchange={(e) => p.onShowFps(e.currentTarget.checked)} /> FPS</label>
 	</section>
 
-	<p class="hint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — полёт, <kbd>Пробел</kbd> / <kbd>Shift</kbd> — вверх / вниз</p>
+	<section class="fly">
+		<label class="title" for="fly-speed">
+			Flight speed <span class="value">{p.flySpeed.toFixed(2)}×</span>
+		</label>
+		<input
+			id="fly-speed"
+			type="range"
+			min={FLY_SPEED.min}
+			max={FLY_SPEED.max}
+			step={FLY_SPEED.step}
+			value={p.flySpeed}
+			aria-label="Flight speed"
+			oninput={(e) => p.onFlySpeed(Number(e.currentTarget.value))}
+		/>
+		<p class="hint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — fly, <kbd>Space</kbd> / <kbd>Shift</kbd> — up / down</p>
+	</section>
 
-	<button type="button" class="reset" onclick={p.onReset}>Сбросить к настройкам диорамы</button>
+	<button type="button" class="reset" onclick={p.onReset}>Reset to diorama defaults</button>
 </div>
 
 <style>
@@ -205,8 +223,9 @@
 		font: inherit;
 		text-align: center;
 	}
+	/* На тачскрине клавиатуры нет — полёт недоступен. */
 	@media (pointer: coarse) {
-		.hint {
+		.fly {
 			display: none;
 		}
 	}

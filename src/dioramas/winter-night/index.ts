@@ -18,12 +18,13 @@ const POND = { x: 18, z: 56, r: 8 };
 
 export default defineDiorama({
 	meta: {
-		title: 'Зимняя ночь',
+		title: 'Winter Night',
 		createdAt: '2026-10-07',
 		author: { model: 'Claude Opus 5.5', effort: 'high', context: '1M' },
 		launchedBy: { name: 'Brofrong', url: 'https://github.com/brofrong' },
-		description: 'Заснеженная деревня: дым из труб, фонари, костёр с жителями и замёрзший пруд',
-		tags: ['зима', 'ночь', 'деревня', 'костёр'],
+		description:
+			'A snowy village: smoke from the chimneys, street lamps, villagers around a campfire and a frozen pond',
+		tags: ['winter', 'night', 'village', 'campfire'],
 	},
 	seed: 23,
 	size: [80, 32, 80],

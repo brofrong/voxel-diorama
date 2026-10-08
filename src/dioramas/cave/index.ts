@@ -57,13 +57,13 @@ const beetle = (glow: string, color: string) =>
 
 export default defineDiorama({
 	meta: {
-		title: 'Пещера',
+		title: 'Cave',
 		createdAt: '2026-10-08',
 		author: { model: 'Claude Haiku 5.5' },
 		launchedBy: { name: 'Brofrong', url: 'https://github.com/brofrong' },
 		description:
-			'Подземная речка в известняковой пещере: сталактиты, сталагмиты, кальцит, аметист и слои базальта с гематитом на срезе. Ночью у входа летают светлячки, по берегу ходят светящиеся жуки.',
-		tags: ['пещера', 'речка', 'светлячки', 'жуки', 'сталактиты', 'минералы'],
+			'An underground stream in a limestone cave: stalactites, stalagmites, calcite, amethyst and layers of basalt and hematite in the cross-section. At night fireflies drift by the entrance and glowing beetles roam the bank.',
+		tags: ['cave', 'stream', 'fireflies', 'beetles', 'stalactites', 'minerals'],
 	},
 	seed: 2129275373,
 	size: [64, 40, 64],

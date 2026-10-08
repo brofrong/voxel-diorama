@@ -6,7 +6,11 @@ export interface ViewerSettings {
 	autoRotate: boolean;
 	/** Счётчик кадров в секунду поверх сцены. */
 	showFps: boolean;
+	/** Множитель скорости полёта WASD; общий для всех диорам. */
+	flySpeed: number;
 }
+
+export const FLY_SPEED = { min: 0.25, max: 3, step: 0.05, default: 1 } as const;
 
 export const SETTINGS_KEY = 'voxel-diorama:settings';
 
@@ -29,6 +33,8 @@ export function parseSettings(raw: string | null): Partial<ViewerSettings> {
 	if (typeof v.particles === 'boolean') out.particles = v.particles;
 	if (typeof v.autoRotate === 'boolean') out.autoRotate = v.autoRotate;
 	if (typeof v.showFps === 'boolean') out.showFps = v.showFps;
+	if (typeof v.flySpeed === 'number' && v.flySpeed >= FLY_SPEED.min && v.flySpeed <= FLY_SPEED.max)
+		out.flySpeed = v.flySpeed;
 	return out;
 }
 
@@ -59,6 +65,7 @@ export function serializeSettings(s: Partial<ViewerSettings>): string {
 		particles: s.particles,
 		autoRotate: s.autoRotate,
 		showFps: s.showFps,
+		flySpeed: s.flySpeed,
 	});
 }
 
@@ -68,12 +75,19 @@ export function resolveSettings(
 ): ViewerSettings {
 	// Скриншот карточки не зависит от настроек зрителя (детерминизм кадра).
 	if (defaults.capture)
-		return { quality: 'auto', particles: true, autoRotate: false, showFps: false };
+		return {
+			quality: 'auto',
+			particles: true,
+			autoRotate: false,
+			showFps: false,
+			flySpeed: FLY_SPEED.default,
+		};
 	return {
 		quality: stored.quality ?? 'auto',
 		particles: stored.particles ?? true,
 		autoRotate: stored.autoRotate ?? (defaults.autoRotate && !defaults.reducedMotion),
 		showFps: stored.showFps ?? false,
+		flySpeed: stored.flySpeed ?? FLY_SPEED.default,
 	};
 }
 
@@ -86,7 +100,7 @@ export function formatHour(hour: number): string {
 }
 
 export const SPEED_OPTIONS: ReadonlyArray<{ value: number; label: string }> = [
-	{ value: 0, label: 'Стоп' },
+	{ value: 0, label: 'Stop' },
 	{ value: 0.5, label: '0.5x' },
 	{ value: 1, label: '1x' },
 	{ value: 1.5, label: '1.5x' },
@@ -94,29 +108,29 @@ export const SPEED_OPTIONS: ReadonlyArray<{ value: number; label: string }> = [
 ];
 
 export const SKY_OPTIONS: ReadonlyArray<{ value: SkyKind; label: string; swatch: string }> = [
-	{ value: 'gradient', label: 'Градиент', swatch: 'linear-gradient(#3d7bd9, #bcd8f5)' },
-	{ value: 'solid', label: 'Сплошной', swatch: '#bcd8f5' },
+	{ value: 'gradient', label: 'Gradient', swatch: 'linear-gradient(#3d7bd9, #bcd8f5)' },
+	{ value: 'solid', label: 'Solid', swatch: '#bcd8f5' },
 	{
 		value: 'realistic',
-		label: 'Реалистичное',
+		label: 'Realistic',
 		swatch: 'radial-gradient(circle at 70% 30%, #fff6d0 8%, #7fb2ec 30%, #2c5fa8)',
 	},
 	{
 		value: 'stylized',
-		label: 'Стилизованное',
+		label: 'Stylized',
 		swatch: 'radial-gradient(circle at 30% 30%, #ffffff 6%, #1b2747 10%, #05070f)',
 	},
 ];
 
 export const QUALITY_OPTIONS: ReadonlyArray<{ value: QualitySetting; label: string }> = [
-	{ value: 'auto', label: 'Авто' },
-	{ value: 'low', label: 'Низкое' },
-	{ value: 'medium', label: 'Среднее' },
-	{ value: 'high', label: 'Высокое' },
+	{ value: 'auto', label: 'Auto' },
+	{ value: 'low', label: 'Low' },
+	{ value: 'medium', label: 'Medium' },
+	{ value: 'high', label: 'High' },
 ];
 
 export const QUALITY_NAMES: Readonly<Record<QualityLevel, string>> = {
-	low: 'низкое',
-	medium: 'среднее',
-	high: 'высокое',
+	low: 'low',
+	medium: 'medium',
+	high: 'high',
 };

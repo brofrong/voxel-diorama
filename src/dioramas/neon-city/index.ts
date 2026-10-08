@@ -740,13 +740,13 @@ const WALKERS: Array<[[number, number], [number, number]]> = [
 
 export default defineDiorama({
 	meta: {
-		title: 'Неоновый город',
+		title: 'Neon City',
 		createdAt: '2026-10-07',
 		author: { model: 'Claude Opus 5.5', effort: 'high', context: '1M' },
 		launchedBy: { name: 'Brofrong', url: 'https://github.com/brofrong' },
 		description:
-			'Ночной киберпанк-город из девяти кварталов: неоновые небоскрёбы, вывески, машины на улицах и летающие машины между башнями',
-		tags: ['киберпанк', 'город', 'ночь', 'неон'],
+			'A nine-block cyberpunk city at night: neon skyscrapers, glowing signs, cars in the streets and flying cars between the towers',
+		tags: ['cyberpunk', 'city', 'night', 'neon'],
 	},
 	seed: 2088,
 	size: [N, 128, N],

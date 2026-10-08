@@ -11,6 +11,7 @@
 	} from '#engine';
 	import { loadDioramaModule } from '#lib/client/diorama-loader.ts';
 	import {
+		FLY_SPEED,
 		loadSettings,
 		resolveSettings,
 		saveSettings,
@@ -48,6 +49,7 @@
 		particles: true,
 		autoRotate: false,
 		showFps: false,
+		flySpeed: FLY_SPEED.default,
 	});
 	let fps = $state(0);
 	let effectiveQuality = $state<QualityLevel>('high');
@@ -165,6 +167,7 @@
 					fixedTime: capture ? scene.captureTime : undefined,
 					quality: settings.quality,
 					particles: settings.particles,
+					flySpeed: settings.flySpeed,
 				});
 				if (disposed) {
 					ctl.dispose();
@@ -246,6 +249,10 @@
 		onShowFps(on: boolean) {
 			persist({ showFps: on });
 		},
+		onFlySpeed(multiplier: number) {
+			persist({ flySpeed: multiplier });
+			controller?.setFlySpeed(multiplier);
+		},
 		onReset() {
 			hour = scene.time.start;
 			speed = scene.time.speed;
@@ -283,7 +290,7 @@
 		<div class="overlay">
 			{#if card.thumb}<img class="backdrop" src={withBase(card.thumb)} alt="" aria-hidden="true" />{/if}
 			<div class="panel">
-				<span>Загрузка… {Math.round(progress * 100)}%</span>
+				<span>Loading… {Math.round(progress * 100)}%</span>
 				<div class="bar"><div style:width="{progress * 100}%"></div></div>
 			</div>
 		</div>
@@ -291,22 +298,22 @@
 		<div class="overlay">
 			{#if card.thumb}<img class="backdrop sharp" src={withBase(card.thumb)} alt={card.title} />{/if}
 			<div class="panel">
-				<p>Браузер не поддерживает WebGPU или WebGL2, поэтому вместо 3D — снимок диорамы.</p>
+				<p>Your browser supports neither WebGPU nor WebGL2, so here is a snapshot of the diorama instead.</p>
 			</div>
 		</div>
 	{:else if status === 'error'}
 		<div class="overlay">
 			<div class="panel">
-				<p>Не удалось загрузить диораму.</p>
+				<p>Couldn’t load the diorama.</p>
 				<p class="detail">{errorMessage}</p>
-				<button type="button" onclick={() => location.reload()}>Повторить</button>
+				<button type="button" onclick={() => location.reload()}>Retry</button>
 			</div>
 		</div>
 	{/if}
 
 	{#if !capture}
 		<header class="hud top">
-			<a class="back" href={resolve('/')}>← Все диорамы</a>
+			<a class="back" href={resolve('/')}>← All dioramas</a>
 			<h1>{card.title}</h1>
 		</header>
 		{#if status === 'ready'}
@@ -314,19 +321,19 @@
 				<div class="hud fps">{fps > 0 ? fps : '—'} FPS</div>
 			{/if}
 			<div class="hud bottom">
-				<button type="button" onclick={togglePause} aria-label={paused ? 'Продолжить' : 'Пауза'}>
+				<button type="button" onclick={togglePause} aria-label={paused ? 'Resume' : 'Pause'}>
 					{paused ? '▶' : '❚❚'}
 				</button>
 				{#if canFullscreen}
-					<button type="button" onclick={toggleFullscreen} aria-label="Во весь экран">⛶</button>
+					<button type="button" onclick={toggleFullscreen} aria-label="Fullscreen">⛶</button>
 				{/if}
 			</div>
 			<button
 				type="button"
 				class="settings-button"
 				aria-expanded={menuOpen}
-				aria-label="Настройки"
-				onclick={() => (menuOpen = !menuOpen)}>⚙ <span class="label">Настройки</span></button
+				aria-label="Settings"
+				onclick={() => (menuOpen = !menuOpen)}>⚙ <span class="label">Settings</span></button
 			>
 			{#if menuOpen}
 				<SettingsPanel
@@ -338,6 +345,7 @@
 					particles={settings.particles}
 					autoRotate={settings.autoRotate}
 					showFps={settings.showFps}
+					flySpeed={settings.flySpeed}
 					{...handlers}
 				/>
 			{/if}

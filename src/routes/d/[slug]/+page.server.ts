@@ -6,6 +6,6 @@ export const entries: EntryGenerator = () => dioramas.map(({ slug }) => ({ slug 
 
 export const load: PageServerLoad = ({ params }) => {
 	const payload = getViewerPayload(params.slug);
-	if (!payload) error(404, 'Диорама не найдена');
+	if (!payload) error(404, 'Diorama not found');
 	return payload;
 };

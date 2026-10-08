@@ -16,7 +16,7 @@ export const dioramas: Array<{ slug: string; diorama: Diorama }> = Object.entrie
 	.sort(
 		(a, b) =>
 			b.diorama.meta.createdAt.localeCompare(a.diorama.meta.createdAt) ||
-			a.diorama.meta.title.localeCompare(b.diorama.meta.title, 'ru'),
+			a.diorama.meta.title.localeCompare(b.diorama.meta.title, 'en'),
 	);
 
 function toCard(slug: string, d: Diorama): CardData {

@@ -38,6 +38,8 @@ meta: {
 }
 ```
 
+Сайт англоязычный: `meta.title`, `description` и `tags` пиши **на английском** (и название в `bun run diorama:new <slug> "Title"` тоже).
+
 Пиши `src/dioramas/<slug>/index.ts`. Что есть в SDK (`#sdk`):
 
 - `w.set / box / sphere / cylinder / line / clear` — примитивы; материал `'air'` вырезает.
@@ -75,6 +77,8 @@ entities: [
 - Земля для `[x, z]` и якорей в маршрутах — верхний твёрдый воксель колонки: крыши, свесы и кроны тоже «земля», поэтому точки маршрута ставь на открытый грунт (якоря `door` префабов — перед дверью). В `custom()` для движения по земле используй `ctx.groundAt(x, z)`.
 - Поведения: `spin`, `bob`, `sway` (добавляются к позе); `walkPath`, `wander`, `orbit`, `flock`, `keyframes` (задают позицию); `custom((pose, t, ctx) => …)` — только от `t`/`ctx`, без `Math.random`.
 - Префабы: `villager`, `cat`, `bird` (rig, scale 0.25), `windmill`, `windmillBlades`, `boat` (scale 0.5). Своя модель сущности может быть мелкой: `model({ size, palette, scale: 0.25, pivot }, …)`.
+- Свой персонаж: `rig({ skeleton, scale, parts: { имя: { model, parent, at } } })`. Скелеты `biped`/`quadruped`/`bird` — фиксированные части и встроенная походка; `skeleton: 'custom'` — любые имена и иерархия (змея, паук, дракон, робот, рыба), ровно один корень без `parent`, ≤ 48 частей, своей походки нет. `at` — точка в вокселях родителя, куда встаёт `pivot` части; pivot ставь в сустав (плечо, основание хвоста).
+- `limbs({ часть: (s) => [x, y, z] })` — повороты частей в градусах как функция `s = { t, gait, stride, phase, index }`; работает с любым скелетом и прибавляется к походке, `limbs({ parts: {…}, replace: true })` — заменяет её. Ставь в `animate` после движения (`walkPath`, `wander`), тогда `s.phase` (0..1) — фаза шага: ноги паука — `30 * Math.sin(2 * Math.PI * s.phase + сдвиг)`. Змея/хвост — волна по сегментам: `25 * Math.sin(s.t * 4 - i * 0.8)`. Помахать рукой человеку: `limbs({ parts: { armR: ({ t }) => [0, 0, 150 + 20 * Math.sin(t * 6)] }, replace: true })`.
 - Лимиты: ≤ 256 экземпляров, ≤ 600 частей, модель ≤ 64³.
 - `camera.captureTime` — секунда анимации для кадра карточки (по умолчанию 2).
 

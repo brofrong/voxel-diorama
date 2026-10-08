@@ -40,7 +40,13 @@ describe('parseSettings', () => {
 	});
 
 	test('serialize ↔ parse', () => {
-		const s = { quality: 'high' as const, particles: true, autoRotate: false, showFps: true };
+		const s = {
+			quality: 'high' as const,
+			particles: true,
+			autoRotate: false,
+			showFps: true,
+			flySpeed: 1.5,
+		};
 		expect(parseSettings(serializeSettings(s))).toEqual(s);
 	});
 });
@@ -52,7 +58,21 @@ describe('resolveSettings', () => {
 			particles: true,
 			autoRotate: true,
 			showFps: false,
+			flySpeed: 1,
 		});
+	});
+
+	test('скорость полёта: сохранённая в допустимых пределах, иначе 1', () => {
+		expect(parseSettings('{"flySpeed":2.5}')).toEqual({ flySpeed: 2.5 });
+		expect(parseSettings('{"flySpeed":10}')).toEqual({});
+		expect(parseSettings('{"flySpeed":"fast"}')).toEqual({});
+		expect(
+			resolveSettings({ flySpeed: 2 }, { autoRotate: false, reducedMotion: false }).flySpeed,
+		).toBe(2);
+		expect(
+			resolveSettings({ flySpeed: 2 }, { autoRotate: false, reducedMotion: false, capture: true })
+				.flySpeed,
+		).toBe(1);
 	});
 
 	test('FPS: сохранённый выбор зрителя; в кадре карточки — всегда скрыт', () => {

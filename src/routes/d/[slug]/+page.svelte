@@ -1,29 +1,25 @@
 <script lang="ts">
+	import Seo from '#lib/components/Seo.svelte';
 	import Viewer from '#lib/components/Viewer.svelte';
-	import { withBase } from '#lib/paths.ts';
-	import { page } from '$app/state';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
-	// База — page.url, а не origin: при prerender base относительный.
-	const ogImage = $derived(
-		data.card.thumb ? new URL(withBase(data.card.thumb), page.url.href).href : null,
+	const card = $derived(data.card);
+	const description = $derived(
+		`${card.description ? card.description.replace(/\.?\s*$/, '.') : `${card.title}, a voxel diorama built by ${card.author}.`} Explore it in 3D right in your browser.`,
 	);
 </script>
 
-<svelte:head>
-	<title>{data.card.title} — Воксельные диорамы</title>
-	<meta name="description" content={data.card.description || data.card.title} />
-	<meta property="og:type" content="website" />
-	<meta property="og:title" content={data.card.title} />
-	<meta property="og:description" content={data.card.description || data.card.title} />
-	<meta property="og:url" content={page.url.href} />
-	{#if ogImage}
-		<meta property="og:image" content={ogImage} />
-		<meta name="twitter:card" content="summary_large_image" />
-	{/if}
-</svelte:head>
+<!-- Без своего скриншота — общая картинка сайта. -->
+<Seo
+	title="{card.title} — Voxel Dioramas"
+	{description}
+	image={card.thumb ?? '/og.jpg'}
+	imageAlt={card.thumb ? `${card.title} — voxel diorama` : 'Voxel Dioramas'}
+	imageWidth={1200}
+	imageHeight={card.thumb ? 800 : 630}
+/>
 
-{#key data.card.slug}
-	<Viewer card={data.card} scene={data.scene} />
+{#key card.slug}
+	<Viewer {card} scene={data.scene} />
 {/key}

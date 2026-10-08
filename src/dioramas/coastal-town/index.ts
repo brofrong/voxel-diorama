@@ -193,13 +193,13 @@ const PH_FLAMINGOS: Array<[number, number, number, number]> = [
 
 export default defineDiorama({
 	meta: {
-		title: 'Городок у бухты',
+		title: 'Coastal Town',
 		createdAt: '2026-10-07',
 		author: { model: 'Claude Opus 5.5', effort: 'high', context: '1M' },
 		launchedBy: { name: 'Brofrong', url: 'https://github.com/brofrong' },
 		description:
-			'Яркие одноэтажные домики террасами до вершины скалистого холма, джунгли на гранях, лавочки на каменной набережной, церковь с большим фонтаном, чайки и прохожие',
-		tags: ['город', 'море', 'холм', 'жители'],
+			'Bright little houses terraced up a rocky hill, jungle on the slopes, benches on a stone waterfront, a church with a big fountain, seagulls and passers-by',
+		tags: ['town', 'sea', 'hill', 'people'],
 	},
 	seed: 41,
 	size: [SX, SY, SZ],
